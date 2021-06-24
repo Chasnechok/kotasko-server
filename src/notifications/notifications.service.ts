@@ -20,9 +20,19 @@ export class NotificationsService {
     ) {}
 
     async subscribe(res: Response, user: User) {
-        NotificationEmmiter.on('notification', (notification: Notification) => {
+        function onNotification(notification: Notification) {
             if (notification.receiver === user._id) res.write(`data: ${JSON.stringify(notification)} \n\n`)
+        }
+        res.on('close', () => {
+            NotificationEmmiter.removeListener('notification', onNotification)
         })
+        NotificationEmmiter.on('notification', onNotification)
+    }
+
+    async getListeners() {
+        return {
+            count: NotificationEmmiter.listenerCount('notification'),
+        }
     }
 
     async list(user: User) {
@@ -55,6 +65,7 @@ export class NotificationsService {
         referencedFile?: File,
         referencedTask?: Task
     ) {
+        if (!receivers) return
         if (!Array.isArray(receivers)) receivers = [receivers]
         const dtoIn = receivers.map((r) => ({
             receiver: r,
