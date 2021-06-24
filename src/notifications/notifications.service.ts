@@ -11,6 +11,7 @@ import { File } from 'src/files/file.schema'
 import { Task } from 'src/tasks/task.schema'
 
 const NotificationEmmiter = new EventEmitter()
+NotificationEmmiter.setMaxListeners(200)
 
 @Injectable()
 export class NotificationsService {
@@ -27,12 +28,6 @@ export class NotificationsService {
             NotificationEmmiter.removeListener('notification', onNotification)
         })
         NotificationEmmiter.on('notification', onNotification)
-    }
-
-    async getListeners() {
-        return {
-            count: NotificationEmmiter.listenerCount('notification'),
-        }
     }
 
     async list(user: User) {
