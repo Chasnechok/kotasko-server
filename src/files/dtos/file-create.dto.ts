@@ -1,23 +1,24 @@
-import { IsMongoId, IsOptional, IsString } from 'class-validator';
+import { IsMongoId, IsOptional, IsString } from 'class-validator'
+import { User } from 'src/users/user.schema'
 
 export class FileStoreDto {
-  @IsString()
-  originalname: string;
+    @IsString()
+    originalname: string
 
-  @IsString()
-  owner: string;
+    @IsString()
+    owner: User
 
-  @IsOptional()
-  @IsString({ each: true })
-  shared?: string[];
+    @IsOptional()
+    @IsString({ each: true })
+    shared?: string[]
 
-  @IsOptional()
-  @IsMongoId({ each: true })
-  readonly linkedTasks?: string[];
+    @IsOptional()
+    @IsMongoId({ each: true })
+    readonly linkedTasks?: string[]
 }
 
 export class FileStoreAccessDto {
-  @IsOptional()
-  @IsString({ each: true })
-  readonly shared?: string[];
+    @IsOptional()
+    @IsString({ each: true })
+    readonly shared?: string[]
 }

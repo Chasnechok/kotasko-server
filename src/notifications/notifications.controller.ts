@@ -1,34 +1,38 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { Controller, Get, Post, Body, UseGuards, Res, Req, Patch } from '@nestjs/common'
+import { NotificationsService } from './notifications.service'
+import { CreateNotificationDto } from './dto/create-notification.dto'
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { Response } from 'express'
+import { SetSeenNotificationDto } from './dto/set-seen-notification.dto'
+import { ValidationPipe } from 'src/validation.pipe'
+import ReqWithSession from 'src/auth/models/req-with-session'
 
+@UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+    constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Post()
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationsService.create(createNotificationDto);
-  }
+    @Post()
+    create(@Body(new ValidationPipe()) createNotificationDto: CreateNotificationDto, @Req() req: ReqWithSession) {
+        return this.notificationsService.create([createNotificationDto], req.user)
+    }
+    @Get()
+    subscribe(@Res() res: Response, @Req() req) {
+        res.set({
+            Connection: 'keep-alive',
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+        })
+        return this.notificationsService.subscribe(res, req.user)
+    }
 
-  @Get()
-  findAll() {
-    return this.notificationsService.findAll();
-  }
+    @Get('list')
+    list(@Req() req: ReqWithSession) {
+        return this.notificationsService.list(req.user)
+    }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.notificationsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
-    return this.notificationsService.update(+id, updateNotificationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.notificationsService.remove(+id);
-  }
+    @Patch('setSeenStatus')
+    setSeenStatus(@Body(new ValidationPipe()) dtoIn: SetSeenNotificationDto, @Req() req: ReqWithSession) {
+        return this.notificationsService.setSeenStatus(dtoIn, req.user)
+    }
 }
