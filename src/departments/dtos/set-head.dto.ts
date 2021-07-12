@@ -1,9 +1,9 @@
-import { IsMongoId, IsString } from "class-validator";
+import { IsMongoId, IsString } from 'class-validator'
 
 export class SetDepHeadDto {
     @IsMongoId()
-    depId: string;
+    depId: string
 
     @IsString()
-    userId: string;
+    userId: string
 }

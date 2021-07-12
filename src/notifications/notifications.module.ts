@@ -3,10 +3,9 @@ import { NotificationsService } from './notifications.service'
 import { NotificationsController } from './notifications.controller'
 import { MongooseModule } from '@nestjs/mongoose'
 import { Notification, NotificationSchema } from './notification.schema'
-import { AuthModule } from 'src/auth/auth.module'
 
 @Module({
-    imports: [MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]), AuthModule],
+    imports: [MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }])],
     controllers: [NotificationsController],
     providers: [NotificationsService],
     exports: [NotificationsService],

@@ -1,4 +1,5 @@
-import { IsMongoId, IsOptional, IsString } from 'class-validator'
+import { Type } from 'class-transformer'
+import { IsMongoId, IsNumber, IsOptional, IsString } from 'class-validator'
 import { User } from 'src/users/user.schema'
 
 export class FileStoreDto {
@@ -21,4 +22,13 @@ export class FileStoreAccessDto {
     @IsOptional()
     @IsString({ each: true })
     readonly shared?: string[]
+
+    @IsOptional()
+    @IsMongoId({ each: true })
+    readonly linkedTasks?: string[]
+
+    @IsOptional()
+    @IsNumber()
+    @Type(() => Number)
+    readonly allSize?: number
 }

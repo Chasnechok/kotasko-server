@@ -1,11 +1,11 @@
-import { IsIn, IsString } from "class-validator";
-
+import { IsIn, IsMongoId, IsString } from 'class-validator'
+import { UserStatesTypes } from '../user.schema'
 
 export class UpdateUserStateDto {
-    @IsString()
-    readonly userId: string;
+    @IsMongoId()
+    readonly userId: string
 
     @IsString()
-    @IsIn(['created', 'active', 'archived'])
-    readonly value: string;
+    @IsIn(Object.values(UserStatesTypes))
+    readonly value: UserStatesTypes
 }

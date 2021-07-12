@@ -6,9 +6,8 @@ import {
     Param,
     Patch,
     Post,
-    Req,
-    Res,
     Session,
+    Res,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
@@ -16,12 +15,13 @@ import {
 } from '@nestjs/common'
 import { FilesInterceptor } from '@nestjs/platform-express'
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
-import { FileStoreAccessDto, FileStoreDto } from './dtos/file-create.dto'
+import { FileStoreAccessDto } from './dtos/file-create.dto'
 import { FilesService } from './files.service'
 import { Response } from 'express'
 import contentDisposition = require('content-disposition')
-import { FileAccessDto, ManageAccessModes } from './dtos/file-access.dto'
-import { ValidationPipe } from 'src/validation.pipe'
+import { FileAccessUserDto, FileAccessModes, FileLinkedTasksDto } from './dtos/file-access.dto'
+import { File } from './file.schema'
+import ListPaginateDto from 'src/pagination/list-paginate.dto'
 
 @Controller('files')
 @UseGuards(JwtAuthGuard)
@@ -31,26 +31,31 @@ export class FilesController {
     @Post('upload')
     @UseInterceptors(FilesInterceptor('files'))
     createFile(
-        @UploadedFiles() files: Array<FileStoreDto & Express.Multer.File>,
-        @Req() request,
-        @Body(new ValidationPipe()) dtoIn: FileStoreAccessDto
+        @UploadedFiles() files: Array<File & Express.Multer.File>,
+        @Session() session,
+        @Body() dtoIn: FileStoreAccessDto
     ) {
-        return this.filesService.uploadFiles(files, request.user, dtoIn.shared)
+        return this.filesService.uploadFiles(files, session.user, dtoIn.shared, dtoIn.linkedTasks)
     }
 
     @Delete()
-    removeFile(@Query('fileId') fileId: string, @Req() request) {
-        return this.filesService.removeFile(fileId, request.user)
+    removeFile(@Query('fileId') fileId: string, @Session() session) {
+        return this.filesService.removeFile(fileId, session.user)
     }
 
     @Get('list')
-    listFiles() {
-        return this.filesService.listFiles()
+    listPaginate(@Query() paginationQuery: ListPaginateDto, @Session() session) {
+        return this.filesService.listPaginate(paginationQuery, session.user)
+    }
+
+    @Get('space')
+    calcSpaceUsed(@Session() session) {
+        return this.filesService.calcSpaceUsed(session.user)
     }
 
     @Get('download/:id')
-    async downloadFile(@Param('id') id: string, @Res() res: Response, @Req() request) {
-        const fileMeta = await this.filesService.downloadFile(id, request.user._id)
+    async downloadFile(@Param('id') id: string, @Res() res: Response, @Session() session) {
+        const fileMeta = await this.filesService.downloadFile(id, session.user)
         const stream = this.filesService.getReadableStream(this.filesService.getStoringPath(fileMeta.filename))
         res.set({
             'Content-Type': fileMeta.mimetype,
@@ -60,17 +65,31 @@ export class FilesController {
         stream.pipe(res)
     }
 
-    @Get('listForUser')
-    listForUser(@Session() session, @Query('page') page?: string, @Query('perPage') perPage?: string) {
-        return this.filesService.listForUser(session.user._id, page, perPage)
+    @Patch('setSharedUsers')
+    setShareUsers(@Body() dtoIn: FileAccessUserDto, @Session() session) {
+        return this.filesService.manageUsersAccess(dtoIn, session.user, FileAccessModes.SET_SHARE)
     }
 
-    @Patch('shareFile')
-    shareFile(@Body(new ValidationPipe()) shareFileDto: FileAccessDto, @Req() request) {
-        return this.filesService.manageAccess(shareFileDto, request.user, ManageAccessModes.SHARE)
+    @Patch('shareFileUser')
+    shareFile(@Body() dtoIn: FileAccessUserDto, @Session() session) {
+        return this.filesService.manageUsersAccess(dtoIn, session.user, FileAccessModes.SHARE)
     }
-    @Patch('unshareFile')
-    unshareFile(@Body(new ValidationPipe()) shareFileDto: FileAccessDto, @Req() request) {
-        return this.filesService.manageAccess(shareFileDto, request.user, ManageAccessModes.UNSHARE)
+    @Patch('unshareFileUser')
+    unshareFile(@Body() dtoIn: FileAccessUserDto, @Session() session) {
+        return this.filesService.manageUsersAccess(dtoIn, session.user, FileAccessModes.UNSHARE)
+    }
+
+    @Patch('setLinkedTasks')
+    setLinkedTasks(@Body() dtoIn: FileLinkedTasksDto, @Session() session) {
+        return this.filesService.manageLinkedTasks(dtoIn, session.user, FileAccessModes.SET_LINKED_TASKS)
+    }
+
+    @Patch('linkTask')
+    linkTask(@Body() dtoIn: FileLinkedTasksDto, @Session() session) {
+        return this.filesService.manageLinkedTasks(dtoIn, session.user, FileAccessModes.LINK_TASK)
+    }
+    @Patch('unlinkTask')
+    unlinkTask(@Body() dtoIn: FileLinkedTasksDto, @Session() session) {
+        return this.filesService.manageLinkedTasks(dtoIn, session.user, FileAccessModes.UNLINK_TASK)
     }
 }

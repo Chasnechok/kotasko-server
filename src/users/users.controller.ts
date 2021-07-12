@@ -1,93 +1,90 @@
-import {
-  Body,
-  Controller,
-  Get,
-  UseGuards,
-  Patch,
-  Put,
-  Delete,
-  Session,
-} from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Roles } from 'src/auth/roles.decorator';
-import { SelfOrAdmin } from 'src/auth/self-admin.decorator';
-import { ValidationPipe } from 'src/validation.pipe';
-import { DeleteUsersDto } from './dtos/delete-user.dto';
-import { ManageDepDto } from './dtos/register-to-dep.dto';
-import { ResetUserDto } from './dtos/reset-user.dto';
-import { SetUserPasswordDto } from './dtos/set-password.dto';
-import { UpdateUserRoleDto } from './dtos/update-role.dto';
-import { UpdateUserStateDto } from './dtos/update-state.dto';
-import { UsersService } from './users.service';
+import { Body, Controller, Get, UseGuards, Patch, Put, Delete, Session, Header } from '@nestjs/common'
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { Roles } from 'src/auth/roles.decorator'
+import { SelfOrAdmin } from 'src/auth/self-admin.decorator'
+import { DeleteUsersDto } from './dtos/delete-user.dto'
+import { AddDepDto, ClearDepDto } from './dtos/register-to-dep.dto'
+import { ResetUserDto } from './dtos/reset-user.dto'
+import { SetUserPasswordDto } from './dtos/set-password.dto'
+import { UpdateUserRoleDto } from './dtos/update-role.dto'
+import { UpdateUserStateDto } from './dtos/update-state.dto'
+import { UpdateUserDto } from './dtos/update-user.dto'
+import { UserRoleTypes } from './user.schema'
+import { UsersService } from './users.service'
 
 @Controller('/users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+    constructor(private usersService: UsersService) {}
 
-  @Get('list')
-  getUsers() {
-    return this.usersService.findAll();
-  }
+    @Get('findActive')
+    getUsers() {
+        return this.usersService.findAllActive()
+    }
 
-  @Roles('admin')
-  @Patch('updateRole')
-  updateUserRole(
-    @Body(new ValidationPipe()) updateUserRole: UpdateUserRoleDto,
-  ) {
-    return this.usersService.updateUserRole(updateUserRole);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Get('findAll')
+    getAllUsers() {
+        return this.usersService.findAll()
+    }
 
-  @SelfOrAdmin('userId')
-  @Patch('setPassword')
-  setUserPassword(
-    @Body(new ValidationPipe()) setPasswordDto: SetUserPasswordDto,
-  ) {
-    return this.usersService.setUserPassword(setPasswordDto);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Patch('addRole')
+    updateUserRole(@Body() dtoIn: UpdateUserRoleDto) {
+        return this.usersService.addUserRole(dtoIn)
+    }
 
-  @Roles('admin')
-  @Put('resetUser')
-  resetUser(@Body(new ValidationPipe()) resetUserDto: ResetUserDto) {
-    return this.usersService.resetUser(resetUserDto);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Patch('removeRole')
+    removeUserRole(@Body() dtoIn: UpdateUserRoleDto) {
+        return this.usersService.removeUserRole(dtoIn)
+    }
 
-  @Roles('admin')
-  @Delete('delete')
-  deleteUsers(@Body(new ValidationPipe()) deleteUsersDto: DeleteUsersDto) {
-    return this.usersService.deleteUsers(deleteUsersDto);
-  }
+    @SelfOrAdmin('userId')
+    @Patch('setPassword')
+    setUserPassword(@Body() setPasswordDto: SetUserPasswordDto) {
+        return this.usersService.setUserPassword(setPasswordDto)
+    }
 
-  @Roles('admin')
-  @Patch('updateUserState')
-  updateUserState(
-    @Body(new ValidationPipe()) updateStateDto: UpdateUserStateDto,
-  ) {
-    return this.usersService.updateUserState(updateStateDto);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Put('reset')
+    resetUser(@Body() resetUserDto: ResetUserDto) {
+        return this.usersService.resetUser(resetUserDto)
+    }
 
-  @Roles('admin')
-  @Patch('registerToDepartment')
-  registerToDepartment(
-    @Body(new ValidationPipe()) registerToDepDto: ManageDepDto,
-  ) {
-    return this.usersService.manageUserDepartment(registerToDepDto, true);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Delete('delete')
+    deleteUsers(@Body() deleteUsersDto: DeleteUsersDto) {
+        return this.usersService.deleteUsers(deleteUsersDto)
+    }
 
-  @Roles('admin')
-  @Patch('unregisterFromDepartment')
-  unregisterFromDepartment(
-    @Body(new ValidationPipe()) unregisterFromDepDto: ManageDepDto,
-  ) {
-    return this.usersService.manageUserDepartment(unregisterFromDepDto, false);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Patch('updateUserState')
+    updateUserState(@Body() updateStateDto: UpdateUserStateDto) {
+        return this.usersService.updateUserState(updateStateDto)
+    }
 
-  @Get('info')
-  getUserInfo(@Session() session) {
-    return this.usersService.findById(session.user._id);
-  }
+    @Roles(UserRoleTypes.ADMIN)
+    @Patch('registerToDepartment')
+    registerToDepartment(@Body() dtoIn: AddDepDto) {
+        return this.usersService.manageUserDepartment(dtoIn)
+    }
 
-  @Roles('admin')
-  @Patch('updateDetails')
-  updateDetails() {}
+    @Roles(UserRoleTypes.ADMIN)
+    @Patch('clearDepartments')
+    unregisterFromDepartment(@Body() dtoIn: ClearDepDto) {
+        return this.usersService.manageUserDepartment(dtoIn, true)
+    }
+
+    @Get('info')
+    @Header('Cache-Control', 'none')
+    getUserInfo(@Session() session) {
+        return this.usersService.getInfo(session.user)
+    }
+
+    @Roles(UserRoleTypes.ADMIN)
+    @Put('update')
+    updateUser(@Body() dtoIn: UpdateUserDto) {
+        return this.usersService.updateUser(dtoIn)
+    }
 }

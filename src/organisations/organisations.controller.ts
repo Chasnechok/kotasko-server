@@ -1,17 +1,18 @@
-import { Post, Controller, Body, Get } from '@nestjs/common';
-import { ValidationPipe } from 'src/validation.pipe';
-import { CreateOrganisationDto, GetHeadDto } from './dtos/organisation.dto';
-import { OrganisationsService } from './organisations.service';
+import { Post, Controller, Body, Get } from '@nestjs/common'
+import { Roles } from 'src/auth/roles.decorator'
+import { UserRoleTypes } from 'src/users/user.schema'
+import { CreateOrganisationDto, GetHeadDto } from './dtos/organisation.dto'
+import { OrganisationsService } from './organisations.service'
 
 @Controller('organisation')
 export class OrganisationsController {
     constructor(private OrganisationsService: OrganisationsService) {}
 
-    @Post('/create') 
-    createOrgnisation(@Body(new ValidationPipe()) CreateOrganisationDto: CreateOrganisationDto) {
+    @Roles(UserRoleTypes.ADMIN)
+    @Post('/create')
+    createOrgnisation(@Body() CreateOrganisationDto: CreateOrganisationDto) {
         return this.OrganisationsService.create(CreateOrganisationDto)
     }
-    
 
     @Get('/list')
     getOrganisations() {
@@ -19,7 +20,7 @@ export class OrganisationsController {
     }
 
     @Get('/getHead')
-    getHead(@Body(new ValidationPipe()) GetHeadDto: GetHeadDto) {
+    getHead(@Body() GetHeadDto: GetHeadDto) {
         return this.OrganisationsService.getHead(GetHeadDto)
     }
 }

@@ -1,11 +1,10 @@
-import { IsString, Length } from "class-validator";
+import { IsMongoId, IsString, Length } from 'class-validator'
 
 export class SetUserPasswordDto {
-    
-    @IsString()
+    @IsMongoId()
     readonly userId: string
 
     @IsString()
     @Length(6, 30)
-    readonly value: string;
+    readonly value: string
 }

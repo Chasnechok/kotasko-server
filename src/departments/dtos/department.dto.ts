@@ -1,16 +1,24 @@
-import { IsMongoId, IsOptional, IsString, Length } from "class-validator";
+import { IsBoolean, IsMongoId, IsOptional, IsString, Length } from 'class-validator'
 
 export class CreateDepartmentDto {
     @IsString()
-    @Length(3, 30)
-    name: string;
+    @Length(3, 100)
+    name: string
 
     @IsMongoId()
-    organisation: string;
+    organisation: string
+
+    @IsOptional()
+    @IsBoolean()
+    isServiceAllowed: boolean
+
+    @IsOptional()
+    @IsString()
+    head?: string
 
     @IsString()
-    @IsOptional()
-    head?: string;
+    @Length(3, 100)
+    address: string
 }
 
 export class DepartmentIdDto {

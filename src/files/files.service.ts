@@ -1,157 +1,208 @@
 import {
     BadRequestException,
     ForbiddenException,
+    forwardRef,
+    Inject,
     Injectable,
     InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model } from 'mongoose'
-import { FileStoreDto } from './dtos/file-create.dto'
+import { FilterQuery, Model } from 'mongoose'
 import { File } from './file.schema'
 import { access, unlink } from 'fs/promises'
 import { constants, createReadStream } from 'fs'
 import * as path from 'path'
 import { Readable } from 'stream'
-import { FileAccessDto, ManageAccessModes } from './dtos/file-access.dto'
+import { FileAccessUserDto, FileLinkedTasksDto, FileAccessModes } from './dtos/file-access.dto'
 import { NotificationsService } from 'src/notifications/notifications.service'
-import { User } from 'src/users/user.schema'
-import { NotificationsTypes } from 'src/notifications/dto/create-notification.dto'
+import { User, UserRoleTypes } from 'src/users/user.schema'
+import { TasksService } from 'src/tasks/tasks.service'
+import { UsersService } from 'src/users/users.service'
+import { NotificationsTypes } from 'src/notifications/notification.schema'
+import { PaginationService } from 'src/pagination/pagination.service'
+import ListPaginateDto from 'src/pagination/list-paginate.dto'
+import { Types } from 'mongoose'
 
 @Injectable()
 export class FilesService {
     constructor(
         @InjectModel(File.name) private fileModel: Model<File>,
-        private notificationsService: NotificationsService
+        private notificationsService: NotificationsService,
+        private tasksService: TasksService,
+        @Inject(forwardRef(() => UsersService))
+        private usersService: UsersService,
+        private paginationService: PaginationService
     ) {}
 
-    async listFiles(filters?: Object) {
+    async findFiles(filters?: FilterQuery<File>) {
         return this.fileModel.find(filters || {})
     }
 
-    async listForUser(userId: string, page?: string, perPage?: string) {
-        const files = await this.fileModel
-            .find({ $or: [{ owner: userId }, { shared: userId }] })
-            .sort({ createdAt: -1 })
-            .populate({ path: 'owner', select: 'details' })
-            .populate({ path: 'shared', select: 'details' })
-            .populate({ path: 'linkedTasks' })
-        const dtoOut = {
-            owns: [],
-            hasAccess: [],
-        }
-        files.forEach((file) => {
-            if (file.owner.id === userId) {
-                dtoOut.owns.push(file)
-            } else dtoOut.hasAccess.push(file)
-        })
-        return dtoOut
+    async calcSpaceUsed(user: User): Promise<number> {
+        const req = await this.fileModel.aggregate([
+            { $match: { owner: Types.ObjectId(user.id) } },
+            {
+                $group: {
+                    _id: null,
+                    spaceUsed: { $sum: '$size' },
+                },
+            },
+        ])
+        const spaceUsed = req && req.length ? req[0].spaceUsed : 0
+        return spaceUsed
     }
 
-    async manageAccess(dto: FileAccessDto, caller: User, mode: ManageAccessModes) {
+    async manageUsersAccess(dto: FileAccessUserDto, caller: User, mode: FileAccessModes) {
         const target = await this.getById(dto.fileId)
-        if (target.owner.id !== caller._id) {
+        if (!target.isOwner(caller)) {
             throw new ForbiddenException(`You are not allowed to manage ${dto.fileId} file.`)
         }
-        const additions = dto.userIds.filter((f) => !target.shared.includes(f))
-        const deletions = target.shared.filter((userId) => !dto.userIds.includes(userId))
-        if (dto.rewrite) {
-            if (additions.includes(target.owner.id)) {
-                throw new BadRequestException('You own the file already.')
-            }
-            target.shared = dto.userIds
-            if (additions && additions.length) {
-                await this.notificationsService.createForUsers(
-                    caller,
-                    NotificationsTypes.NEW_SHARED_FILE,
-                    additions,
-                    target
-                )
-            }
-            if (deletions && deletions.length) {
-                await this.notificationsService.removeForUsers(caller, deletions, target)
-            }
-        } else {
-            switch (mode) {
-                case ManageAccessModes.SHARE:
-                    if (dto.userIds.includes(target.owner.id)) {
-                        throw new BadRequestException('You own the file already.')
-                    }
-                    target.shared = [...target.shared, ...additions]
-                    if (additions && additions.length) {
-                        await this.notificationsService.createForUsers(
-                            caller,
-                            NotificationsTypes.NEW_SHARED_FILE,
-                            additions,
-                            target
-                        )
-                    }
-                    break
-                case ManageAccessModes.UNSHARE:
-                    target.shared = target.shared.filter((userId) => !dto.userIds.includes(userId))
-                    if (deletions && deletions.length) {
-                        await this.notificationsService.removeForUsers(caller, deletions, target)
-                    }
-                    break
-            }
+        const additions = await this.usersService.findAll({
+            _id: {
+                $in: dto.userIds,
+                $nin: target.shared.map((u) => u.id).concat(caller.id),
+            },
+        })
+        // if mode === UNSHARE => means REMAINING users, as we are passing an array of users that should be removed
+        const deletions = target.shared.filter((user) => !dto.userIds.includes(user.id))
+
+        switch (mode) {
+            case FileAccessModes.SET_SHARE:
+                target.shared = await this.usersService.findAll({
+                    _id: {
+                        $in: dto.userIds,
+                        $nin: [caller.id],
+                    },
+                })
+                break
+            case FileAccessModes.SHARE:
+                target.shared = [...additions, ...target.shared]
+                break
+            case FileAccessModes.UNSHARE:
+                target.shared = deletions
+        }
+
+        if (additions && additions.length) {
+            this.notificationsService.create(caller, NotificationsTypes.NEW_SHARED_FILE, additions, target)
+        }
+
+        if (deletions && deletions.length) {
+            this.notificationsService.removeForUsers(deletions, target, NotificationsTypes.FILE_UNSHARED)
         }
         return target.save()
     }
 
-    async downloadFile(fileId: string, callerId: string): Promise<File> {
+    async manageLinkedTasks(dto: FileLinkedTasksDto, caller: User, mode: FileAccessModes) {
+        const target = await this.getById(dto.fileId)
+
+        if (!target.isOwner(caller)) {
+            throw new ForbiddenException(`You are not allowed to manage ${dto.fileId} file.`)
+        }
+        const additions = await this.tasksService.find({
+            _id: {
+                $in: dto.taskIds,
+                $nin: target.linkedTasks.map((t) => t.id),
+            },
+        })
+        // if mode === UNLINK_TASK => means REMAINING tasks, as we are passing an array of tasks that should be removed
+        const deletions = target.linkedTasks.filter((task) => !dto.taskIds.includes(task.id))
+
+        switch (mode) {
+            case FileAccessModes.SET_LINKED_TASKS:
+                target.linkedTasks = await this.tasksService.find({
+                    _id: {
+                        $in: dto.taskIds,
+                        $nin: [caller.id],
+                    },
+                })
+                break
+            case FileAccessModes.LINK_TASK:
+                target.linkedTasks = [...additions, ...target.linkedTasks]
+                break
+            case FileAccessModes.UNLINK_TASK:
+                target.linkedTasks = deletions
+        }
+        return target.save()
+    }
+
+    async downloadFile(fileId: string, caller: User): Promise<File> {
         const fileMeta = await this.getById(fileId)
-        if (fileMeta.owner.id !== callerId && !fileMeta.shared.includes(callerId)) {
+        if (!fileMeta.hasAccess(caller)) {
             throw new ForbiddenException()
         }
         const filePath = this.getStoringPath(fileMeta.filename)
         try {
             await access(filePath, constants.F_OK)
         } catch (error) {
-            await this.removeFromDB([fileId])
+            await fileMeta.delete()
             throw new NotFoundException(`File with ${fileId} id was not found in the file system!`)
         }
         return fileMeta
     }
 
     async uploadFiles(
-        files: Array<FileStoreDto & Express.Multer.File>,
+        files: Array<File & Express.Multer.File>,
         caller: User,
-        shared?: string[]
+        shared?: string[],
+        linkedTasks?: string[]
     ): Promise<File[]> {
+        if (!files || !files.length) return
         const areValid =
-            files.every((file) => file.originalname && file.mimetype && file.path && file.filename) && caller._id
+            files.every((file) => file.originalname && file.mimetype && file.path && file.filename) && caller.id
         if (!areValid) {
             await Promise.all(files.map((file) => unlink(file.path).catch(console.error)))
-            throw new BadRequestException('Uploading failed: files are not valid!')
+            throw new BadRequestException('Upload failed: files are not valid!')
         }
+        const { size: allSize } = files.reduce((acc, curr) => Object.assign(acc, { size: acc.size + curr.size }))
+        if (allSize > caller.quota - caller.spaceUsed && caller.quota !== -1) {
+            await Promise.all(files.map((file) => unlink(file.path).catch(console.error)))
+            throw new BadRequestException('Files exceed user quota')
+        }
+        const user = await this.usersService.findById(caller.id)
+        user.spaceUsed = user.spaceUsed + allSize
+        user.save()
         files.forEach((file) => (file.owner = caller))
         if (shared && shared.length) {
-            files.forEach((file) => (file.shared = shared))
+            const sharedUsers = await this.usersService.findAll({
+                _id: { $in: shared },
+            })
+            files.forEach((file) => (file.shared = sharedUsers))
+        }
+        if (linkedTasks && linkedTasks.length) {
+            const tasks = await this.tasksService.find({
+                _id: { $in: linkedTasks },
+            })
+            files.forEach((file) => (file.linkedTasks = tasks))
         }
         const storedFiles = await this.storeToDB(files)
         storedFiles.forEach((file) =>
-            this.notificationsService.createForUsers(caller, NotificationsTypes.NEW_SHARED_FILE, shared, file)
+            this.notificationsService.create(caller, NotificationsTypes.NEW_SHARED_FILE, file.shared, file)
         )
         return storedFiles
     }
 
     async removeFile(fileId: string, caller: User) {
         const target = await this.getById(fileId)
-        const deletions = target.shared
-        if (target.owner._id !== caller._id) {
+        if (!target.isOwner(caller)) {
             throw new ForbiddenException('You are trying to remove another user`s file!')
         }
-        const removed = await this.removeFromDB([fileId])
         try {
+            const deletions = target.shared
+            const user = await this.usersService.findById(caller.id)
+            user.spaceUsed = user.spaceUsed - target.size
+            await target.delete()
+            await user.save()
+            await this.notificationsService.removeAllForFile(target, deletions)
             await unlink(this.getStoringPath(target.filename))
-            await this.notificationsService.removeForUsers(caller, deletions, target)
         } catch (error) {
+            console.log(error)
             throw new InternalServerErrorException()
         }
-        return removed
+        return target
     }
 
-    private async storeToDB(files: Array<FileStoreDto & Express.Multer.File>): Promise<File[]> {
+    private async storeToDB(files: Array<File & Express.Multer.File>): Promise<File[]> {
         const dtoIn = files.map((file) => ({
             originalname: file.originalname,
             filename: file.filename,
@@ -160,27 +211,87 @@ export class FilesService {
             size: file.size,
             shared: file.shared || [],
         }))
-        const storedFiles = await this.fileModel.insertMany(dtoIn).catch((err) => {
-            throw new InternalServerErrorException(err)
-        })
+        const storedFiles = await this.fileModel
+            .insertMany(dtoIn, {
+                populate: {
+                    path: 'owner',
+                    select: 'details',
+                },
+            })
+            .catch((err) => {
+                throw new InternalServerErrorException(err)
+            })
         return storedFiles
     }
 
-    private async removeFromDB(fileIds: string[]): Promise<Object> {
-        return await this.fileModel.deleteMany({
-            _id: {
-                $in: fileIds,
+    async listPaginate(dtoIn: ListPaginateDto, caller: User) {
+        const addQuery = { $or: [{ owner: Types.ObjectId(caller.id) }, { shared: Types.ObjectId(caller.id) }] }
+        const { query, sort } = this.paginationService.generatePaginationQuery(dtoIn.cursor, addQuery, dtoIn.sort)
+        const files = await this.fileModel.aggregate([
+            { $match: query },
+            {
+                $sort: { createdAt: sort },
             },
-        })
+            { $limit: dtoIn.limit },
+            {
+                $lookup: {
+                    from: 'users',
+                    let: { ownerId: '$owner' },
+                    pipeline: [
+                        {
+                            $project: {
+                                _id: 1,
+                                details: 1,
+                                department: 1,
+                                roles: 1,
+                                bid: { $toObjectId: '$$ownerId' },
+                            },
+                        },
+                        { $match: { $expr: { $eq: ['$_id', '$bid'] } } },
+                        { $project: { bid: 0 } },
+                    ],
+                    as: 'owner',
+                },
+            },
+            { $unwind: '$owner' },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'shared',
+                    foreignField: '_id',
+                    as: 'shared',
+                },
+            },
+            {
+                $project: {
+                    shared: { details: 1, _id: 1 },
+                    owner: 1,
+                    originalname: 1,
+                    mimetype: 1,
+                    size: 1,
+                    createdAt: 1,
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    data: {
+                        $push: '$$ROOT',
+                    },
+                    nextCursor: { $last: '$_id' },
+                },
+            },
+            {
+                $project: { _id: 0 },
+            },
+        ])
+        return files && files.length ? files[0] : {}
     }
 
     private async getById(fileId: string): Promise<File> {
-        const file = await this.fileModel
-            .findById(fileId)
-            .populate('owner')
-            .catch((err) => {
-                throw new BadRequestException(`DB error or ${fileId} is not a valid ObjectId.`)
-            })
+        const file = await this.fileModel.findById(fileId).catch((err) => {
+            throw new BadRequestException(`DB error or ${fileId} is not a valid ObjectId.`)
+        })
         if (!file) throw new NotFoundException(`File with ${fileId} id was not found!`)
         return file
     }
@@ -196,6 +307,6 @@ export class FilesService {
     }
 
     getStoringPath(filename?: string) {
-        return path.resolve(__dirname, '..', `userFiles/${filename || ''}`)
+        return path.resolve(__dirname, '../../..', `userFiles/${filename || ''}`)
     }
 }

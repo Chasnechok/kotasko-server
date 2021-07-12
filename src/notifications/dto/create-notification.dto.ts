@@ -2,17 +2,9 @@ import { IsBoolean, IsIn, IsMongoId, IsNumber, IsOptional, IsString, ValidateIf 
 import { File } from 'src/files/file.schema'
 import { Task } from 'src/tasks/task.schema'
 import { User } from 'src/users/user.schema'
+import { NotificationsTypes } from '../notification.schema'
 
 // sender will be added from session
-
-export enum NotificationsTypes {
-    NEW_TASK,
-    UPDATE_TASK,
-    COMPLETE_TASK,
-    NEW_SHARED_FILE,
-    SYSTEM,
-    FILE_UNSHARED,
-}
 
 export class CreateNotificationDto {
     @IsString()
@@ -28,11 +20,11 @@ export class CreateNotificationDto {
 
     @IsMongoId()
     @ValidateIf((o) => o.type !== NotificationsTypes.SYSTEM && !o.referencedFile)
-    referencedTask: Task
+    referencedTask?: Task
 
     @IsMongoId()
     @ValidateIf((o) => o.type !== NotificationsTypes.SYSTEM && !o.referencedTask)
-    referencedFile: File
+    referencedFile?: File
 
     @IsString()
     @IsOptional()

@@ -1,9 +1,9 @@
-import { IsBoolean, IsMongoId } from 'class-validator';
+import { IsBoolean, IsMongoId } from 'class-validator'
 
 export class SetSeenNotificationDto {
-  @IsMongoId()
-  notificationId: string;
+    @IsMongoId()
+    notificationId: string
 
-  @IsBoolean()
-  isSeen: boolean;
+    @IsBoolean()
+    isSeen: boolean
 }

@@ -1,25 +1,28 @@
-import { IsBoolean, IsMongoId, IsOptional, IsString } from 'class-validator';
+import { IsMongoId, IsOptional, IsString } from 'class-validator'
 
-export enum ManageAccessModes {
-  SHARE,
-  UNSHARE,
-  LINK_TASK,
-  UNLINK_TASK,
+export enum FileAccessModes {
+    SHARE,
+    UNSHARE,
+    SET_SHARE,
+    LINK_TASK,
+    UNLINK_TASK,
+    SET_LINKED_TASKS,
 }
 
-export class FileAccessDto {
-  @IsMongoId()
-  readonly fileId: string;
+export class FileAccessUserDto {
+    @IsMongoId()
+    readonly fileId: string
 
-  @IsOptional()
-  @IsString({ each: true })
-  readonly userIds?: string[];
+    @IsOptional()
+    @IsString({ each: true })
+    readonly userIds: string[]
+}
 
-  @IsOptional()
-  @IsMongoId({ each: true })
-  readonly taskIds?: string[];
+export class FileLinkedTasksDto {
+    @IsMongoId()
+    readonly fileId: string
 
-  @IsOptional()
-  @IsBoolean()
-  readonly rewrite?: boolean;
+    @IsOptional()
+    @IsString({ each: true })
+    readonly taskIds: string[]
 }

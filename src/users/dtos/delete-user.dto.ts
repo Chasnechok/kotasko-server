@@ -1,7 +1,7 @@
-import { ArrayNotEmpty, IsArray } from 'class-validator'
+import { ArrayNotEmpty, IsMongoId } from 'class-validator'
 
 export class DeleteUsersDto {
-    @IsArray()
+    @IsMongoId({ each: true })
     @ArrayNotEmpty()
     userIds: string[]
 }

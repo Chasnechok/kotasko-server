@@ -1,10 +1,14 @@
-import { IsIn, IsString } from "class-validator";
+import { Type } from 'class-transformer'
+import { IsIn, IsMongoId, IsString } from 'class-validator'
+import { UserRoleTypes } from '../user.schema'
+import { Types } from 'mongoose'
 
 export class UpdateUserRoleDto {
-    @IsString()
-    readonly userId: string;
+    @IsMongoId()
+    @Type(() => Types.ObjectId)
+    readonly userId: string
 
     @IsString()
-    @IsIn(['admin', 'user', 'technician'])
-    readonly value: string;
+    @IsIn(Object.values(UserRoleTypes))
+    readonly value: UserRoleTypes
 }

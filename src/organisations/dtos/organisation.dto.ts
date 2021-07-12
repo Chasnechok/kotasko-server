@@ -1,13 +1,17 @@
-import { IsMongoId, IsOptional, IsString, Length } from "class-validator";
+import { IsMongoId, IsOptional, IsString, Length } from 'class-validator'
 
 export class CreateOrganisationDto {
     @IsString()
-    @Length(3, 30)
-    name: string;
+    @Length(3, 100)
+    name: string
+
+    @IsString()
+    @Length(3, 100)
+    address: string
 
     @IsString()
     @IsOptional()
-    head?: string;
+    head?: string
 }
 
 export class GetHeadDto {

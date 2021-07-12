@@ -1,11 +1,18 @@
-import { IsMongoId, IsString } from 'class-validator';
+import { IsMongoId, IsOptional } from 'class-validator'
 
-export class ManageDepDto {
-    
-    @IsString()
-    userId: string;
-    
-    @IsMongoId({ each: true })
-    departmentIds: string[];
+export class AddDepDto {
+    @IsMongoId()
+    userId: string
 
+    @IsMongoId()
+    departmentId: string
+}
+
+export class ClearDepDto {
+    @IsMongoId()
+    userId: string
+
+    @IsOptional()
+    @IsMongoId()
+    departmentId: string
 }

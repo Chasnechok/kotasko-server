@@ -1,6 +1,6 @@
-import { IsString } from "class-validator";
+import { IsMongoId } from 'class-validator'
 
 export class ResetUserDto {
-    @IsString()
-    readonly userId: string;
+    @IsMongoId()
+    readonly userId: string
 }
