@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Body, UseGuards, Res, Session, Patch, Delete, Query } from '@nestjs/common'
 import { NotificationsService } from './notifications.service'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { AuthGuard } from 'src/auth/auth.guard'
 import { Response } from 'express'
 import { SetSeenNotificationDto } from './dto/set-seen-notification.dto'
 import ReqWithSession from 'src/auth/models/req-with-session'
 import { RemoveNotificationDto } from './dto/remove-notification.dto'
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 @Controller('notifications')
 export class NotificationsController {
     constructor(private readonly notificationsService: NotificationsService) {}

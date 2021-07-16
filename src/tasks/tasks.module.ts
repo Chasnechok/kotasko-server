@@ -14,7 +14,7 @@ import { TasksService } from './tasks.service'
         forwardRef(() => MessagesModule),
         forwardRef(() => FilesModule),
         NotificationsModule,
-        forwardRef(() => UsersModule),
+        UsersModule,
     ],
     controllers: [TasksController],
     providers: [TasksService],

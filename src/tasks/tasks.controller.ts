@@ -1,12 +1,12 @@
 import { Controller, Get, Query, UseGuards, Session, Post, Body, Patch, Delete } from '@nestjs/common'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { AuthGuard } from 'src/auth/auth.guard'
 import ListPaginateDto from 'src/pagination/list-paginate.dto'
 import { TaskCreateDto } from './dtos/task-create.dto'
 import { TaskManageModes, TaskManageUsers } from './dtos/task-manage-users.dto'
 import { TaskStateDto } from './dtos/task-state.dto'
 import { TasksService } from './tasks.service'
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 @Controller('tasks')
 export class TasksController {
     constructor(private readonly tasksService: TasksService) {}

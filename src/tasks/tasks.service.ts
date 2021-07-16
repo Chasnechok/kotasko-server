@@ -31,7 +31,6 @@ export class TasksService {
         private messagesService: MessagesService,
         @Inject(forwardRef(() => FilesService))
         private filesService: FilesService,
-        @Inject(forwardRef(() => UsersService))
         private usersService: UsersService,
         private paginationService: PaginationService
     ) {}

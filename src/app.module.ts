@@ -11,7 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module'
 import { MessagesModule } from './messages/messages.module'
 import { ChoresModule } from './chores/chores.module'
 import { PaginationModule } from './pagination/pagination.module'
-import { SignalsModule } from './signals/signals.module'
+import { SignalsModule } from './signals/signals.module';
 
 // import * as mongoose from 'mongoose'
 /// mongoose.set('debug', true)

@@ -1,10 +1,8 @@
-import { Module } from '@nestjs/common'
-import { SignalsService } from './signals.service'
-import { SignalsController } from './signals.controller'
+import { Module } from '@nestjs/common';
+import { SignalsService } from './signals.service';
+import { SignalsGateway } from './signals.gateway';
 
 @Module({
-    controllers: [SignalsController],
-    providers: [SignalsService],
-    exports: [SignalsService],
+  providers: [SignalsGateway, SignalsService]
 })
 export class SignalsModule {}

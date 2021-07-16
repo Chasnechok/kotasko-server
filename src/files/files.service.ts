@@ -30,7 +30,6 @@ export class FilesService {
         @InjectModel(File.name) private fileModel: Model<File>,
         private notificationsService: NotificationsService,
         private tasksService: TasksService,
-        @Inject(forwardRef(() => UsersService))
         private usersService: UsersService,
         private paginationService: PaginationService
     ) {}

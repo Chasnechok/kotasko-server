@@ -14,7 +14,7 @@ import {
     Query,
 } from '@nestjs/common'
 import { FilesInterceptor } from '@nestjs/platform-express'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { AuthGuard } from 'src/auth/auth.guard'
 import { FileStoreAccessDto } from './dtos/file-create.dto'
 import { FilesService } from './files.service'
 import { Response } from 'express'
@@ -24,7 +24,7 @@ import { File } from './file.schema'
 import ListPaginateDto from 'src/pagination/list-paginate.dto'
 
 @Controller('files')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 export class FilesController {
     constructor(private filesService: FilesService) {}
 

@@ -13,8 +13,8 @@ import { UsersModule } from 'src/users/users.module'
     imports: [
         MongooseModule.forFeature([{ name: File.name, schema: FileSchema }]),
         NotificationsModule,
-        TasksModule,
-        forwardRef(() => UsersModule),
+        forwardRef(() => TasksModule),
+        UsersModule,
         MulterModule.register({
             dest: path.resolve(__dirname, '../../..', 'userFiles'),
         }),

@@ -35,7 +35,6 @@ export class MessagesService {
         private filesService: FilesService,
         @Inject(forwardRef(() => TasksService))
         private tasksService: TasksService,
-        @Inject(forwardRef(() => UsersService))
         private usersService: UsersService
     ) {}
 

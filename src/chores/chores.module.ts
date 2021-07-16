@@ -11,7 +11,7 @@ import { UsersModule } from 'src/users/users.module'
     imports: [
         MongooseModule.forFeature([{ name: Chore.name, schema: ChoreSchema }]),
         forwardRef(() => MessagesModule),
-        forwardRef(() => UsersModule),
+        UsersModule,
         NotificationsModule,
     ],
     controllers: [ChoresController],

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Patch, Post, Query, Session, UseGuards } from '@nestjs/common'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { AuthGuard } from 'src/auth/auth.guard'
 import { Roles } from 'src/auth/roles.decorator'
 import ListPaginateDto from 'src/pagination/list-paginate.dto'
 import { UserRoleTypes } from 'src/users/user.schema'
@@ -11,7 +11,7 @@ import SetChoreState from './dto/set-chore-state.dto'
 import SetChoreType from './dto/set-chore-type.dto'
 
 @Controller('chores')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 export class ChoresController {
     constructor(private readonly choresService: ChoresService) {}
 

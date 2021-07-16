@@ -22,7 +22,6 @@ export class ChoresService {
         private paginationService: PaginationService,
         @Inject(forwardRef(() => MessagesService))
         private messagesService: MessagesService,
-        @Inject(forwardRef(() => UsersService))
         private usersService: UsersService,
         private notificationsService: NotificationsService
     ) {}
