@@ -1,16 +1,23 @@
-import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, forwardRef, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { User, UserStatesTypes } from 'src/users/user.schema'
 import { UsersService } from 'src/users/users.service'
 import { LoginUserDto, RegisterUserDto } from './dtos/auth.dto'
 import * as bcryptjs from 'bcryptjs'
 import { customAlphabet } from 'nanoid'
-import { Session } from 'express-session'
+import { Session as ExpressSession } from 'express-session'
+import { Session } from './session.schema'
 import { FinishRegDto } from './dtos/finish-reg.dto'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
 const nanoid = customAlphabet('0123456789ABCDEF', 4)
 
 @Injectable()
 export class AuthService {
-    constructor(private userService: UsersService) {}
+    constructor(
+        @Inject(forwardRef(() => UsersService))
+        private userService: UsersService,
+        @InjectModel(Session.name) private sessionModel: Model<Session>
+    ) {}
 
     async login(loginUserDto: LoginUserDto, session): Promise<User> {
         const user = await this.validateUser(loginUserDto)
@@ -18,7 +25,7 @@ export class AuthService {
         return user
     }
 
-    async logout(session: Session): Promise<Session> {
+    async logout(session: ExpressSession): Promise<ExpressSession> {
         return session.destroy((err) => {
             if (err) console.error(err)
         })
@@ -50,7 +57,7 @@ export class AuthService {
         target.details.mobile = dtoIn.mobile || target.details.mobile
         target.state = UserStatesTypes.ACTIVE
         await target.save()
-        const targetSessions = await this.userService.sessionByUserId(target.id)
+        const targetSessions = await this.sessionByUserId(target.id)
         targetSessions.forEach((s) => {
             const data = JSON.parse(s.session)
             data.user = target
@@ -58,6 +65,13 @@ export class AuthService {
             s.save()
         })
         return target
+    }
+
+    async sessionByUserId(userId: string) {
+        const session = await this.sessionModel.find({
+            session: { $regex: `.*"user":.*"_id":"${userId}"` },
+        })
+        return session
     }
 
     private async validateUser(loginUserDto: LoginUserDto) {

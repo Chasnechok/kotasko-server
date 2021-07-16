@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { User, UserRoleTypes, UserStatesTypes } from './user.schema'
-import { FilterQuery, Model, Schema } from 'mongoose'
+import { FilterQuery, Model } from 'mongoose'
 import { UpdateUserRoleDto } from './dtos/update-role.dto'
 import { UpdateUserStateDto } from './dtos/update-state.dto'
 import { SetUserPasswordDto } from './dtos/set-password.dto'
@@ -9,21 +9,19 @@ import * as bcryptjs from 'bcryptjs'
 import { ResetUserDto } from './dtos/reset-user.dto'
 import { customAlphabet } from 'nanoid'
 import { DeleteUsersDto } from './dtos/delete-user.dto'
-import { AddDepDto, ClearDepDto } from './dtos/register-to-dep.dto'
+import { AddDepDto } from './dtos/register-to-dep.dto'
 import { DepartmentsService } from 'src/departments/departments.service'
 import { CreateUserDto } from './dtos/create-user.dto'
 import { UpdateUserDto } from './dtos/update-user.dto'
-import { Session } from 'src/auth/session.schema'
-import { FilesService } from 'src/files/files.service'
+import { AuthService } from 'src/auth/auth.service'
 const nanoid = customAlphabet('0123456789ABCDEF', 4)
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
-        @InjectModel(Session.name) private sessionModel: Model<Session>,
         private departmentsService: DepartmentsService,
-        private filesService: FilesService
+        private authService: AuthService
     ) {}
 
     async createUser(createUserDto: CreateUserDto): Promise<User> {
@@ -49,7 +47,7 @@ export class UsersService {
         user.details = dtoIn.details || user.details
         user.roles = dtoIn.roles || user.roles
         user.quota = dtoIn.quota || user.quota
-        const userSessions = await this.sessionByUserId(user.id)
+        const userSessions = await this.authService.sessionByUserId(user.id)
         userSessions.forEach((s) => {
             const data = JSON.parse(s.session)
             data.user = user
@@ -71,8 +69,11 @@ export class UsersService {
         return user.save()
     }
 
-    async setUserPassword(setPasswordDto: SetUserPasswordDto): Promise<User> {
+    async setUserPassword(setPasswordDto: SetUserPasswordDto, caller: User): Promise<User> {
         const user = await this.findById(setPasswordDto.userId)
+        if (user.id !== caller.id && !caller.roles.includes(UserRoleTypes.ADMIN)) {
+            throw new ForbiddenException()
+        }
         const hashedPassword = await bcryptjs.hash(setPasswordDto.value, 5)
         user.password = hashedPassword
         if (user.state === UserStatesTypes.CREATED) user.state = UserStatesTypes.ACTIVE
@@ -85,7 +86,7 @@ export class UsersService {
         const hashedPassword = await bcryptjs.hash(OTP, 5)
         user.state = UserStatesTypes.CREATED
         user.password = hashedPassword
-        const userSessions = await this.sessionByUserId(user.id)
+        const userSessions = await this.authService.sessionByUserId(user.id)
         userSessions.forEach((s) => {
             s.remove()
         })
@@ -95,7 +96,7 @@ export class UsersService {
 
     async deleteUsers(deleteUsersDto: DeleteUsersDto) {
         for (const userId of deleteUsersDto.userIds) {
-            const userSessions = await this.sessionByUserId(userId)
+            const userSessions = await this.authService.sessionByUserId(userId)
             userSessions.forEach((s) => s.remove())
         }
         return this.userModel.deleteMany({
@@ -113,7 +114,7 @@ export class UsersService {
         } else {
             user.department = null
         }
-        const userSessions = await this.sessionByUserId(user.id)
+        const userSessions = await this.authService.sessionByUserId(user.id)
         userSessions.forEach((s) => {
             const data = JSON.parse(s.session)
             data.user = user
@@ -163,12 +164,5 @@ export class UsersService {
 
     async findTechnicians(): Promise<User[]> {
         return this.userModel.find({ roles: UserRoleTypes.TECHNICIAN })
-    }
-
-    async sessionByUserId(userId: string) {
-        const session = await this.sessionModel.find({
-            session: { $regex: `.*"user":.*"_id":"${userId}"` },
-        })
-        return session
     }
 }

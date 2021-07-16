@@ -1,7 +1,6 @@
 import { Body, Controller, Get, UseGuards, Patch, Put, Delete, Session, Header } from '@nestjs/common'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
+import { AuthGuard } from 'src/auth/auth.guard'
 import { Roles } from 'src/auth/roles.decorator'
-import { SelfOrAdmin } from 'src/auth/self-admin.decorator'
 import { DeleteUsersDto } from './dtos/delete-user.dto'
 import { AddDepDto, ClearDepDto } from './dtos/register-to-dep.dto'
 import { ResetUserDto } from './dtos/reset-user.dto'
@@ -13,7 +12,7 @@ import { UserRoleTypes } from './user.schema'
 import { UsersService } from './users.service'
 
 @Controller('/users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 export class UsersController {
     constructor(private usersService: UsersService) {}
 
@@ -40,10 +39,9 @@ export class UsersController {
         return this.usersService.removeUserRole(dtoIn)
     }
 
-    @SelfOrAdmin('userId')
     @Patch('setPassword')
-    setUserPassword(@Body() setPasswordDto: SetUserPasswordDto) {
-        return this.usersService.setUserPassword(setPasswordDto)
+    setUserPassword(@Body() setPasswordDto: SetUserPasswordDto, @Session() session) {
+        return this.usersService.setUserPassword(setPasswordDto, session.user)
     }
 
     @Roles(UserRoleTypes.ADMIN)
