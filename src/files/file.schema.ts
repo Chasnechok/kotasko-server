@@ -43,7 +43,7 @@ export class File extends Document {
 
 export const FileSchema = SchemaFactory.createForClass(File)
 FileSchema.methods.isOwner = function (user: User): boolean {
-    return this.owner.id === user.id
+    return this.owner && this.owner.id === user.id
 }
 FileSchema.methods.hasAccess = function (user: User): boolean {
     const isOwner = this.isOwner(user)

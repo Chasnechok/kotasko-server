@@ -1,6 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common'
 import { MessagesService } from './messages.service'
-import { MessagesController } from './messages.controller'
 import { MongooseModule } from '@nestjs/mongoose'
 import { NotificationsModule } from 'src/notifications/notifications.module'
 import { Message, MessageSchema } from './message.schema'
@@ -9,6 +8,7 @@ import { ChoresModule } from 'src/chores/chores.module'
 import { UsersModule } from 'src/users/users.module'
 import { FilesModule } from 'src/files/files.module'
 import { MessagesGateway } from './messages.gateway'
+import { MessagesController } from './messages.controller'
 
 @Module({
     imports: [

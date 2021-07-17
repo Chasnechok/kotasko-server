@@ -1,34 +1,31 @@
-import { WebSocketGateway, SubscribeMessage, MessageBody } from '@nestjs/websockets'
+import {
+    WebSocketGateway,
+    SubscribeMessage,
+    MessageBody,
+    ConnectedSocket,
+    BaseWsExceptionFilter,
+} from '@nestjs/websockets'
 import { MessagesService } from './messages.service'
-import { Session, UseGuards } from '@nestjs/common'
+import { UseFilters, UseGuards } from '@nestjs/common'
 import { AuthGuard } from 'src/auth/auth.guard'
-import { CreateMessageDto } from './dtos/message-create.dto'
-import { ListForTaskDto } from './dtos/list-for-task.dto'
+import { ListMessagesDto } from './dtos/list.dto'
+import { Message } from './message.schema'
+import { Socket } from 'socket.io'
 
 @UseGuards(AuthGuard)
+@UseFilters(new BaseWsExceptionFilter())
 @WebSocketGateway({ namespace: 'chat' })
 export class MessagesGateway {
     constructor(private readonly messagesService: MessagesService) {}
 
-    @SubscribeMessage('message')
-    create(@MessageBody() dtoIn: CreateMessageDto, @Session() session) {
-        console.log(dtoIn)
-        console.log(session)
-
-        return this.messagesService.create(dtoIn, session.user, dtoIn.type)
+    @SubscribeMessage('list')
+    list(@MessageBody() dtoIn: ListMessagesDto, @ConnectedSocket() client) {
+        return this.messagesService.list(dtoIn.entityId, client.handshake.session.user, client)
     }
 
-    @SubscribeMessage('listForTask')
-    listForTask(@MessageBody() dtoIn: ListForTaskDto, @Session() session) {
-        console.log(dtoIn)
-        console.log(session)
-        return { ok: true }
-
-        return this.messagesService.listForTask(dtoIn.taskId, session.user)
-    }
-
-    @SubscribeMessage('listForChore')
-    listForChore(@MessageBody('choreId') choreId: string, @Session() session) {
-        return this.messagesService.listForChore(choreId, session.user)
+    @SubscribeMessage('createMessage')
+    create(@MessageBody() dtoIn: Message & { roomId: string }, @ConnectedSocket() client: Socket) {
+        client.to(dtoIn.roomId).emit('message', dtoIn)
+        return
     }
 }

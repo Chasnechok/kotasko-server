@@ -18,12 +18,9 @@ import { TasksService } from 'src/tasks/tasks.service'
 import { User, UserRoleTypes } from 'src/users/user.schema'
 import { CreateMessageDto } from './dtos/message-create.dto'
 import { Message, MessagesTypes } from './message.schema'
-import { EventEmitter } from 'events'
-import { Response } from 'express'
-import { UsersService } from 'src/users/users.service'
-
-const MessagesEmmiter = new EventEmitter()
-MessagesEmmiter.setMaxListeners(200)
+import { Types } from 'mongoose'
+import { WsException } from '@nestjs/websockets'
+import { Socket } from 'socket.io'
 
 @Injectable()
 export class MessagesService {
@@ -34,29 +31,17 @@ export class MessagesService {
         @Inject(forwardRef(() => FilesService))
         private filesService: FilesService,
         @Inject(forwardRef(() => TasksService))
-        private tasksService: TasksService,
-        private usersService: UsersService
+        private tasksService: TasksService
     ) {}
 
-    async subscribe(res: Response, busId: string, user: User) {
-        function onMessage(message: Message, receivers: User[]) {
-            // any authenticated user can connect to this bus => specify receivers to authorize receiving messages
-            if (receivers.some((u) => u.id === user.id)) res.write(`data: ${JSON.stringify(message)} \n\n`)
-        }
-        res.on('close', () => {
-            MessagesEmmiter.removeListener(busId, onMessage)
-        })
-        MessagesEmmiter.on(busId, onMessage)
-    }
-
-    async create(dtoIn: CreateMessageDto, sender: User, type: MessagesTypes) {
-        switch (type) {
+    async create(dtoIn: CreateMessageDto, sender: User) {
+        switch (dtoIn.type) {
             case MessagesTypes.INTASK_MESSAGE:
             case MessagesTypes.INTASK_SYS_MESSAGE:
-                return this.createForTask(dtoIn, sender, type)
+                return this.createForTask(dtoIn, sender, dtoIn.type)
             case MessagesTypes.INCHORE_MESSAGE:
             case MessagesTypes.INCHORE_SYS_MESSAGE:
-                return this.createForChore(dtoIn, sender, type)
+                return this.createForChore(dtoIn, sender, dtoIn.type)
             default:
                 throw new BadRequestException('Unsupported message type')
         }
@@ -71,6 +56,24 @@ export class MessagesService {
         return
     }
 
+    async list(entityId, caller: User, socket: Socket) {
+        if (!entityId || !Types.ObjectId.isValid(entityId)) throw new WsException('entityId must be a mongoId')
+        const msgs = await this.messageModel.find({
+            $or: [{ referencedTask: entityId }, { referencedChore: entityId }, { sender: entityId }],
+        })
+        const sample = msgs && msgs.length ? msgs[0] : null
+        if (sample) {
+            if (
+                (sample.referencedTask && !sample.referencedTask.hasAccess(caller)) ||
+                (sample.referencedChore && !sample.referencedChore.hasAccess(caller))
+            ) {
+                throw new WsException('Forbidden')
+            }
+        }
+        await socket.join(entityId)
+        return socket.emit('list', msgs)
+    }
+
     private async createForChore(dtoIn: CreateMessageDto, sender: User, type: MessagesTypes) {
         const target = await this.choresService.getById(dtoIn.referencedEntity)
         if (target.creator.id !== sender.id && !sender.roles.includes(UserRoleTypes.TECHNICIAN)) {
@@ -80,7 +83,6 @@ export class MessagesService {
             delete dtoIn.attachments
         }
         const notificationReceivers = [target.creator, ...target.solvers]
-        const messageReceivers = (await this.usersService.findTechnicians()).concat(target.creator)
         if (notificationReceivers.length && type !== MessagesTypes.INCHORE_SYS_MESSAGE) {
             await this.notificationsService.create(
                 sender,
@@ -91,7 +93,6 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedChore: target })
         await message.save()
-        this.emitMessage(target.id, message, messageReceivers)
         return message
     }
 
@@ -127,32 +128,6 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedTask: target })
         await message.save()
-        await this.emitMessage(target.id, message, notificationReceivers)
         return message
-    }
-
-    async listForTask(taskId: string, caller: User) {
-        const target = await this.tasksService.getById(taskId)
-        if (target.creator.id !== caller.id && !target.assignedTo.some((u) => u.id === caller.id)) {
-            throw new ForbiddenException()
-        }
-        return this.messageModel.find({
-            referencedTask: target,
-        })
-    }
-
-    async listForChore(choreId: string, caller: User) {
-        const target = await this.choresService.getById(choreId)
-        if (target.creator.id !== caller.id && !caller.roles.includes(UserRoleTypes.ADMIN)) {
-            throw new ForbiddenException()
-        }
-        return this.messageModel.find({
-            referencedChore: target,
-        })
-    }
-
-    private emitMessage(busId: string, message: Message, receivers: User[]) {
-        if (!Array.isArray(receivers)) receivers = [receivers]
-        MessagesEmmiter.emit(busId, message, receivers)
     }
 }

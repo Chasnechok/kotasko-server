@@ -37,10 +37,10 @@ export class Message extends Document {
     })
     receiver?: User
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Task', required: false })
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Task', required: false, autopopulate: { maxDepth: 2 } })
     referencedTask?: Task
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Chore', required: false })
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Chore', required: false, autopopulate: { maxDepth: 2 } })
     referencedChore?: Chore
 
     @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'File', autopopulate: { maxDepth: 1 } }] })

@@ -1,6 +1,6 @@
 import { IsMongoId } from 'class-validator'
 
-export class ListForTaskDto {
+export class ListMessagesDto {
     @IsMongoId()
-    taskId: string
+    entityId: string
 }

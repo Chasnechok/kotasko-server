@@ -67,7 +67,7 @@ export class Chore extends Document {
 export const ChoreSchema = SchemaFactory.createForClass(Chore)
 
 ChoreSchema.methods.hasAccess = function (user: User, strict?: boolean) {
-    const isCreator = this.creator.id == user.id
+    const isCreator = this.creator && this.creator.id == user.id
     if (strict) {
         return isCreator || this.solvers.some((u) => u.id == user.id)
     }

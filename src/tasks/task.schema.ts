@@ -38,6 +38,19 @@ export class Task extends Document {
 
     @Prop({ index: -1 })
     createdAt: Date
+
+    isCreator: (user: User) => boolean
+
+    hasAccess: (user: User) => boolean
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task)
+
+TaskSchema.methods.isCreator = function (user: User): boolean {
+    return this.creator && this.creator.id === user.id
+}
+TaskSchema.methods.hasAccess = function (user: User): boolean {
+    const isCreator = this.isCreator(user)
+    const assignedTo = this.assignedTo.some((u) => u.id === user.id)
+    return isCreator || assignedTo
+}
