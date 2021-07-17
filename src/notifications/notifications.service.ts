@@ -1,7 +1,12 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { EventEmitter } from 'events'
+import {
+    BadRequestException,
+    ForbiddenException,
+    forwardRef,
+    Inject,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common'
 import { CreateNotificationDto } from './dto/create-notification.dto'
-import { Response } from 'express'
 import { InjectModel } from '@nestjs/mongoose'
 import { Notification, NotificationsTypes } from './notification.schema'
 import { Model } from 'mongoose'
@@ -11,33 +16,23 @@ import { File } from 'src/files/file.schema'
 import { Task } from 'src/tasks/task.schema'
 import { Chore } from 'src/chores/chore.schema'
 import { RemoveNotificationDto } from './dto/remove-notification.dto'
-
-const NotificationEmmiter = new EventEmitter()
-NotificationEmmiter.setMaxListeners(200)
+import { Socket } from 'socket.io'
+import { NotificationsGateway } from './notifications.gateway'
+import { plainToClassFromExist } from 'class-transformer'
 
 @Injectable()
 export class NotificationsService {
     constructor(
         @InjectModel(Notification.name)
-        private notificationModel: Model<Notification>
+        private notificationModel: Model<Notification>,
+        @Inject(forwardRef(() => NotificationsGateway))
+        private notificationGateway: NotificationsGateway
     ) {}
 
-    async subscribe(res: Response, user: User) {
-        function onNotification(notification: Notification) {
-            if (typeof notification.receiver === 'string') {
-                if (notification.receiver === user.id) res.write(`data: ${JSON.stringify(notification)} \n\n`)
-            } else {
-                if (notification.receiver.id === user.id) res.write(`data: ${JSON.stringify(notification)} \n\n`)
-            }
-        }
-        res.on('close', () => {
-            NotificationEmmiter.removeListener('notification', onNotification)
-        })
-        NotificationEmmiter.on('notification', onNotification)
-    }
-
-    async list(user: User) {
-        return this.notificationModel.find({ receiver: user.id }).sort({ createdAt: -1 })
+    async list(user: User, socket: Socket) {
+        const nfs = await this.notificationModel.find({ receiver: user.id }).sort({ createdAt: -1 })
+        await socket.join(user.id)
+        return socket.emit('list', nfs)
     }
 
     async create(
@@ -76,8 +71,10 @@ export class NotificationsService {
             type,
         }))
         const created = await this.storeNotification(dtoIn, caller)
-        for (const notification of created) {
-            this.emmitNotification(notification)
+        if (created) {
+            created.forEach((nf) => {
+                this.emitNotification(nf.receiver.id, Object.assign(nf))
+            })
         }
         return created
     }
@@ -93,8 +90,10 @@ export class NotificationsService {
             type,
         }))
         const created = await this.storeNotification(dtoIn, caller)
-        for (const notification of created) {
-            this.emmitNotification(notification)
+        if (created) {
+            created.forEach((nf) => {
+                this.emitNotification(nf.receiver.id, Object.assign(nf))
+            })
         }
         return created
     }
@@ -110,8 +109,10 @@ export class NotificationsService {
             type,
         }))
         const created = await this.storeNotification(dtoIn, caller)
-        for (const notification of created) {
-            this.emmitNotification(notification)
+        if (created) {
+            created.forEach((nf) => {
+                this.emitNotification(nf.receiver.id, Object.assign(nf))
+            })
         }
         return created
     }
@@ -127,66 +128,40 @@ export class NotificationsService {
             | NotificationsTypes.TASK_UNASSIGNED
         >
     ) {
-        if (!receivers || !receivers.length) return
-        await this.notificationModel.deleteMany({
+        if (!receivers || !receivers.length || !target) return
+        const toDel = await this.notificationModel.find({
             receiver: { $in: receivers },
             $or: [{ referencedTask: target.id }, { referencedFile: target.id }, { referencedChore: target.id }],
         })
-        for (const receiver of receivers) {
-            const notification = {
-                type,
-                receiver,
-            }
-            NotificationEmmiter.emit('notification', notification)
+        if (toDel) {
+            toDel.forEach((nf) => {
+                this.emitNotification(nf.receiver.id, Object.assign(nf, { type }))
+                nf.remove()
+            })
         }
+        return toDel
     }
 
-    async removeAllForFile(file: File, receivers?: User[]) {
-        await this.notificationModel.deleteMany({
-            referencedFile: file,
+    async removeForEntity<T extends User | Task | File | Chore>(entity: T, receivers: User[]) {
+        const toDel = await this.notificationModel.find({
+            $or: [{ referencedTask: entity.id }, { referencedFile: entity.id }, { referencedChore: entity.id }],
         })
-        if (receivers) {
-            for (const receiver of receivers) {
-                const notification = {
-                    type: NotificationsTypes.FILE_UNSHARED,
-                    receiver,
-                    referencedFile: file,
+        if (toDel) {
+            const rooms = receivers.map((u) => u.id)
+            toDel.forEach((nf) => {
+                if (nf.referencedTask) {
+                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.TASK_REMOVED }))
                 }
-                NotificationEmmiter.emit('notification', notification)
-            }
-        }
-    }
-
-    async removeAllForTask(task: Task, receivers?: User[]) {
-        await this.notificationModel.deleteMany({
-            referencedTask: task,
-        })
-        if (receivers) {
-            for (const receiver of receivers) {
-                const notification = {
-                    type: NotificationsTypes.TASK_REMOVED,
-                    receiver,
-                    referencedTask: task,
+                if (nf.referencedChore) {
+                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.CHORE_REMOVED }))
                 }
-                NotificationEmmiter.emit('notification', notification)
-            }
-        }
-    }
-
-    async removeAllForChore(chore: Chore, receivers?: User[]) {
-        await this.notificationModel.deleteMany({
-            referencedChore: chore,
-        })
-        if (receivers) {
-            for (const receiver of receivers) {
-                const notification = {
-                    type: NotificationsTypes.CHORE_REMOVED,
-                    receiver,
-                    referencedChore: chore,
+                if (nf.referencedFile) {
+                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.FILE_UNSHARED }))
                 }
-                NotificationEmmiter.emit('notification', notification)
-            }
+                nf.remove()
+            })
         }
+        return toDel
     }
 
     async setSeenStatus(dtoIn: SetSeenNotificationDto, caller: User) {
@@ -210,19 +185,16 @@ export class NotificationsService {
         return notification
     }
 
-    private emmitNotification(notification: Notification) {
-        NotificationEmmiter.emit('notification', notification)
+    private async emitNotification(rooms: string | string[], notification: Notification) {
+        this.notificationGateway.server.to(rooms).emit('notification', notification)
     }
 
     private async storeNotification(dtoIn: CreateNotificationDto[], caller: User): Promise<Notification[]> {
-        const nfToCreate: CreateNotificationDto[] = []
+        const nfsToCreate: CreateNotificationDto[] = []
         for (const nf of dtoIn) {
-            if (nf.receiver.id !== caller.id) nfToCreate.push(Object.assign(nf, { sender: caller }))
+            if (nf.receiver.id !== caller.id) nfsToCreate.push(Object.assign(nf, { sender: caller }))
         }
-        const created = await this.notificationModel.create(nfToCreate)
-        if (!created) {
-            return []
-        }
+        const created = await this.notificationModel.create(nfsToCreate)
         return created
     }
 }

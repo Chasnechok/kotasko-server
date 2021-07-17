@@ -11,21 +11,6 @@ import { RemoveNotificationDto } from './dto/remove-notification.dto'
 export class NotificationsController {
     constructor(private readonly notificationsService: NotificationsService) {}
 
-    @Get()
-    subscribe(@Res() res: Response, @Session() session) {
-        res.set({
-            Connection: 'keep-alive',
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-        })
-        return this.notificationsService.subscribe(res, session.user)
-    }
-
-    @Get('list')
-    list(@Session() session: ReqWithSession) {
-        return this.notificationsService.list(session.user)
-    }
-
     @Patch('setSeenStatus')
     setSeenStatus(@Body() dtoIn: SetSeenNotificationDto, @Session() session: ReqWithSession) {
         return this.notificationsService.setSeenStatus(dtoIn, session.user)

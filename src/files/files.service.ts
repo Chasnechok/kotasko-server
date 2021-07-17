@@ -1,8 +1,6 @@
 import {
     BadRequestException,
     ForbiddenException,
-    forwardRef,
-    Inject,
     Injectable,
     InternalServerErrorException,
     NotFoundException,
@@ -153,7 +151,8 @@ export class FilesService {
             await Promise.all(files.map((file) => unlink(file.path).catch(console.error)))
             throw new BadRequestException('Upload failed: files are not valid!')
         }
-        const { size: allSize } = files.reduce((acc, curr) => Object.assign(acc, { size: acc.size + curr.size }))
+        const sizes = files.map((file) => file.size)
+        const allSize = sizes.reduce((acc, curr) => acc + curr)
         if (allSize > caller.quota - caller.spaceUsed && caller.quota !== -1) {
             await Promise.all(files.map((file) => unlink(file.path).catch(console.error)))
             throw new BadRequestException('Files exceed user quota')
@@ -190,9 +189,9 @@ export class FilesService {
             const deletions = target.shared
             const user = await this.usersService.findById(caller.id)
             user.spaceUsed = user.spaceUsed - target.size
+            await this.notificationsService.removeForEntity<File>(target, deletions)
             await target.delete()
             await user.save()
-            await this.notificationsService.removeAllForFile(target, deletions)
             await unlink(this.getStoringPath(target.filename))
         } catch (error) {
             console.log(error)

@@ -125,7 +125,7 @@ export class ChoresService {
         target.state = dtoIn.state
         if (dtoIn.state === ChoreStates.SOLVED) {
             const techs = await this.usersService.findTechnicians()
-            this.notificationsService.removeAllForChore(target, techs)
+            this.notificationsService.removeForEntity<Chore>(target, techs)
         }
         return target.save()
     }
@@ -159,8 +159,7 @@ export class ChoresService {
         }
         await this.messagesService.removeForEntity<Chore>(target)
         const techs = await this.usersService.findTechnicians()
-        this.notificationsService.create(caller, NotificationsTypes.CHORE_REMOVED, techs, target)
-        await this.notificationsService.removeAllForChore(target, techs)
+        await this.notificationsService.removeForEntity<Chore>(target, techs)
         return target.remove()
     }
 }

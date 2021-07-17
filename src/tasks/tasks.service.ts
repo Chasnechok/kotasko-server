@@ -75,8 +75,8 @@ export class TasksService {
             throw new ForbiddenException(`You are not allowed to manage ${taskId} task.`)
         }
         const usersFromTask = [target.creator, ...target.assignedTo]
-        this.messagesService.removeForEntity<Task>(target)
-        this.notificationsService.removeAllForTask(target, usersFromTask)
+        await this.messagesService.removeForEntity<Task>(target)
+        await this.notificationsService.removeForEntity<Task>(target, usersFromTask)
         return target.delete()
     }
 

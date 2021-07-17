@@ -21,6 +21,8 @@ export class CreateDepartmentDto {
     address: string
 }
 
+export class UpdateDepartmentDto extends CreateDepartmentDto {}
+
 export class DepartmentIdDto {
     @IsMongoId()
     depId: string
