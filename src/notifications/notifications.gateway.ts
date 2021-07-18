@@ -1,7 +1,6 @@
 import {
     WebSocketGateway,
     SubscribeMessage,
-    MessageBody,
     ConnectedSocket,
     BaseWsExceptionFilter,
     WebSocketServer,
@@ -23,11 +22,5 @@ export class NotificationsGateway {
     list(@ConnectedSocket() client: Socket & { handshake: { session } }) {
         const user = client.handshake.session.user
         return client.join(user.id)
-    }
-
-    @SubscribeMessage('createNotification')
-    create(@MessageBody() dtoIn: Notification & { roomId: string }, @ConnectedSocket() client: Socket) {
-        client.to(dtoIn.roomId).emit('notification', dtoIn)
-        return
     }
 }

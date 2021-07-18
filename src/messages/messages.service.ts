@@ -18,9 +18,7 @@ import { TasksService } from 'src/tasks/tasks.service'
 import { User, UserRoleTypes } from 'src/users/user.schema'
 import { CreateMessageDto } from './dtos/message-create.dto'
 import { Message, MessagesTypes } from './message.schema'
-import { Types } from 'mongoose'
 import { WsException } from '@nestjs/websockets'
-import { Socket } from 'socket.io'
 
 @Injectable()
 export class MessagesService {
@@ -58,7 +56,7 @@ export class MessagesService {
 
     async list(entityId, caller: User) {
         const msgs = await this.messageModel.find({
-            $or: [{ referencedTask: entityId }, { referencedChore: entityId }, { sender: entityId }],
+            $or: [{ referencedTask: entityId }, { referencedChore: entityId }],
         })
         const sample = msgs && msgs.length ? msgs[0] : null
         if (sample) {
@@ -70,6 +68,20 @@ export class MessagesService {
             }
         }
         return msgs
+    }
+
+    async checkAccessWS(entityId, caller: User) {
+        const target = await this.messageModel.findOne({
+            $or: [{ referencedTask: entityId }, { referencedChore: entityId }],
+        })
+        if (target) {
+            if (
+                (target.referencedTask && !target.referencedTask.hasAccess(caller)) ||
+                (target.referencedChore && !target.referencedChore.hasAccess(caller))
+            ) {
+                throw new WsException('Forbidden')
+            }
+        }
     }
 
     private async createForChore(dtoIn: CreateMessageDto, sender: User, type: MessagesTypes) {
