@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document, Schema as MongooseSchema } from 'mongoose'
+import { MainModelNames } from 'src/main'
 import { User, UserRoleTypes } from '../users/user.schema'
 
 export enum ChoreTypes {
@@ -62,6 +63,8 @@ export class Chore extends Document {
      * strict ? solvers contains user : user is technician
      */
     hasAccess: (user: User, strict?: boolean) => boolean
+
+    getModelName: () => MainModelNames
 }
 
 export const ChoreSchema = SchemaFactory.createForClass(Chore)
@@ -73,3 +76,5 @@ ChoreSchema.methods.hasAccess = function (user: User, strict?: boolean) {
     }
     return isCreator || user.roles.includes(UserRoleTypes.TECHNICIAN)
 }
+
+ChoreSchema.methods.getModelName = () => MainModelNames.CHORES

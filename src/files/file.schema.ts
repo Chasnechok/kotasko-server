@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document, Schema as MongooseSchema } from 'mongoose'
+import { MainModelNames } from 'src/main'
 import { Task } from 'src/tasks/task.schema'
 import { User } from 'src/users/user.schema'
 
@@ -39,6 +40,8 @@ export class File extends Document {
     isOwner: (user: User) => boolean
 
     hasAccess: (user: User) => boolean
+
+    getModelName: () => MainModelNames
 }
 
 export const FileSchema = SchemaFactory.createForClass(File)
@@ -53,3 +56,4 @@ FileSchema.methods.hasAccess = function (user: User): boolean {
         this.linkedTasks.some((lt) => lt.creator === user.id || lt.creator?.id === user.id)
     return isOwner || inShared || inLinkedTasks
 }
+FileSchema.methods.getModelName = () => MainModelNames.FILES

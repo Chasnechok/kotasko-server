@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document, Schema as MongooseSchema } from 'mongoose'
 import { File } from 'src/files/file.schema'
+import { MainModelNames } from 'src/main'
 import { User } from 'src/users/user.schema'
 
 export enum TaskStates {
@@ -42,6 +43,8 @@ export class Task extends Document {
     isCreator: (user: User) => boolean
 
     hasAccess: (user: User) => boolean
+
+    getModelName: () => MainModelNames
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task)
@@ -54,3 +57,4 @@ TaskSchema.methods.hasAccess = function (user: User): boolean {
     const assignedTo = this.assignedTo.some((u) => u.id === user.id)
     return isCreator || assignedTo
 }
+TaskSchema.methods.getModelName = () => MainModelNames.TASKS

@@ -16,6 +16,12 @@ export const SESSION_PARSER = session({
     },
 })
 
+export enum MainModelNames {
+    TASKS,
+    FILES,
+    CHORES,
+}
+
 async function start() {
     const PORT = Number(process.env.PORT) || 5000
     const app = await NestFactory.create(AppModule)

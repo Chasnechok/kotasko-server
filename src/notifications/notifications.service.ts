@@ -10,6 +10,7 @@ import { Task } from 'src/tasks/task.schema'
 import { Chore } from 'src/chores/chore.schema'
 import { RemoveNotificationDto } from './dto/remove-notification.dto'
 import { NotificationsGateway } from './notifications.gateway'
+import { MainModelNames } from 'src/main'
 
 @Injectable()
 export class NotificationsService {
@@ -130,26 +131,34 @@ export class NotificationsService {
         return toDel
     }
 
-    async removeForEntity<T extends User | Task | File | Chore>(entity: T, receivers: User[]) {
-        const toDel = await this.notificationModel.find({
+    async removeForEntity<T extends Task | File | Chore>(entity: T, receivers: User[]) {
+        await this.notificationModel.deleteMany({
             $or: [{ referencedTask: entity.id }, { referencedFile: entity.id }, { referencedChore: entity.id }],
         })
-        if (toDel) {
+        if (receivers && entity.getModelName) {
             const rooms = receivers.map((u) => u.id)
-            toDel.forEach((nf) => {
-                if (nf.referencedTask) {
-                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.TASK_REMOVED }))
-                }
-                if (nf.referencedChore) {
-                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.CHORE_REMOVED }))
-                }
-                if (nf.referencedFile) {
-                    this.emitNotification(rooms, Object.assign(nf, { type: NotificationsTypes.FILE_UNSHARED }))
-                }
-                nf.remove()
-            })
+            switch (entity.getModelName()) {
+                case MainModelNames.TASKS:
+                    this.emitNotification(rooms, {
+                        type: NotificationsTypes.TASK_REMOVED,
+                        referencedTask: entity as Task,
+                    } as Notification)
+                    break
+                case MainModelNames.CHORES:
+                    this.emitNotification(rooms, {
+                        type: NotificationsTypes.CHORE_REMOVED,
+                        referencedChore: entity as Chore,
+                    } as Notification)
+                    break
+                case MainModelNames.FILES:
+                    this.emitNotification(rooms, {
+                        type: NotificationsTypes.FILE_UNSHARED,
+                        referencedFile: entity as File,
+                    } as Notification)
+                    break
+            }
         }
-        return toDel
+        return
     }
 
     async setSeenStatus(dtoIn: SetSeenNotificationDto, caller: User) {
