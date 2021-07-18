@@ -5,7 +5,6 @@ import {
     ConnectedSocket,
     BaseWsExceptionFilter,
 } from '@nestjs/websockets'
-import { MessagesService } from './messages.service'
 import { UseFilters, UseGuards } from '@nestjs/common'
 import { AuthGuard } from 'src/auth/auth.guard'
 import { ListMessagesDto } from './dtos/list.dto'
@@ -16,11 +15,11 @@ import { Socket } from 'socket.io'
 @UseFilters(new BaseWsExceptionFilter())
 @WebSocketGateway({ namespace: 'chat' })
 export class MessagesGateway {
-    constructor(private readonly messagesService: MessagesService) {}
+    constructor() {}
 
-    @SubscribeMessage('list')
-    list(@MessageBody() dtoIn: ListMessagesDto, @ConnectedSocket() client) {
-        return this.messagesService.list(dtoIn.entityId, client.handshake.session.user, client)
+    @SubscribeMessage('room')
+    list(@MessageBody() dtoIn: ListMessagesDto, @ConnectedSocket() client: Socket) {
+        return client.join(dtoIn.entityId)
     }
 
     @SubscribeMessage('createMessage')

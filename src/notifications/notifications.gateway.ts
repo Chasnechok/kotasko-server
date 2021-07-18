@@ -6,26 +6,23 @@ import {
     BaseWsExceptionFilter,
     WebSocketServer,
 } from '@nestjs/websockets'
-import { forwardRef, Inject, UseFilters, UseGuards } from '@nestjs/common'
+import { UseFilters, UseGuards } from '@nestjs/common'
 import { AuthGuard } from 'src/auth/auth.guard'
 import { Socket, Server } from 'socket.io'
-import { NotificationsService } from './notifications.service'
 
 @UseGuards(AuthGuard)
 @UseFilters(new BaseWsExceptionFilter())
 @WebSocketGateway({ namespace: 'notifications' })
 export class NotificationsGateway {
-    constructor(
-        @Inject(forwardRef(() => NotificationsService))
-        private readonly notificationsService: NotificationsService
-    ) {}
+    constructor() {}
 
     @WebSocketServer()
     server: Server
 
-    @SubscribeMessage('list')
-    list(@ConnectedSocket() client) {
-        return this.notificationsService.list(client.handshake.session.user, client)
+    @SubscribeMessage('room')
+    list(@ConnectedSocket() client: Socket & { handshake: { session } }) {
+        const user = client.handshake.session.user
+        return client.join(user.id)
     }
 
     @SubscribeMessage('createNotification')

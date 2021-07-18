@@ -56,8 +56,7 @@ export class MessagesService {
         return
     }
 
-    async list(entityId, caller: User, socket: Socket) {
-        if (!entityId || !Types.ObjectId.isValid(entityId)) throw new WsException('entityId must be a mongoId')
+    async list(entityId, caller: User) {
         const msgs = await this.messageModel.find({
             $or: [{ referencedTask: entityId }, { referencedChore: entityId }, { sender: entityId }],
         })
@@ -67,11 +66,10 @@ export class MessagesService {
                 (sample.referencedTask && !sample.referencedTask.hasAccess(caller)) ||
                 (sample.referencedChore && !sample.referencedChore.hasAccess(caller))
             ) {
-                throw new WsException('Forbidden')
+                throw new ForbiddenException()
             }
         }
-        await socket.join(entityId)
-        return socket.emit('list', msgs)
+        return msgs
     }
 
     private async createForChore(dtoIn: CreateMessageDto, sender: User, type: MessagesTypes) {

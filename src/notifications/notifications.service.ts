@@ -1,11 +1,4 @@
-import {
-    BadRequestException,
-    ForbiddenException,
-    forwardRef,
-    Inject,
-    Injectable,
-    NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { CreateNotificationDto } from './dto/create-notification.dto'
 import { InjectModel } from '@nestjs/mongoose'
 import { Notification, NotificationsTypes } from './notification.schema'
@@ -16,23 +9,18 @@ import { File } from 'src/files/file.schema'
 import { Task } from 'src/tasks/task.schema'
 import { Chore } from 'src/chores/chore.schema'
 import { RemoveNotificationDto } from './dto/remove-notification.dto'
-import { Socket } from 'socket.io'
 import { NotificationsGateway } from './notifications.gateway'
-import { plainToClassFromExist } from 'class-transformer'
 
 @Injectable()
 export class NotificationsService {
     constructor(
         @InjectModel(Notification.name)
         private notificationModel: Model<Notification>,
-        @Inject(forwardRef(() => NotificationsGateway))
         private notificationGateway: NotificationsGateway
     ) {}
 
-    async list(user: User, socket: Socket) {
-        const nfs = await this.notificationModel.find({ receiver: user.id }).sort({ createdAt: -1 })
-        await socket.join(user.id)
-        return socket.emit('list', nfs)
+    async list(user: User) {
+        return this.notificationModel.find({ receiver: user.id }).sort({ createdAt: -1 })
     }
 
     async create(
