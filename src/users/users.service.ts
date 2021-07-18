@@ -46,7 +46,7 @@ export class UsersService {
         const user = await this.findById(dtoIn.userId)
         user.details = dtoIn.details || user.details
         user.roles = dtoIn.roles || user.roles
-        user.quota = dtoIn.quota || user.quota
+        user.quota = typeof dtoIn.quota !== undefined ? dtoIn.quota : user.quota
         const userSessions = await this.authService.sessionByUserId(user.id)
         userSessions.forEach((s) => {
             const data = JSON.parse(s.session)
