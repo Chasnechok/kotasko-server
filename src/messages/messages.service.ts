@@ -19,6 +19,7 @@ import { User, UserRoleTypes } from 'src/users/user.schema'
 import { CreateMessageDto } from './dtos/message-create.dto'
 import { Message, MessagesTypes } from './message.schema'
 import { WsException } from '@nestjs/websockets'
+import { MessagesGateway } from './messages.gateway'
 
 @Injectable()
 export class MessagesService {
@@ -29,7 +30,9 @@ export class MessagesService {
         @Inject(forwardRef(() => FilesService))
         private filesService: FilesService,
         @Inject(forwardRef(() => TasksService))
-        private tasksService: TasksService
+        private tasksService: TasksService,
+        @Inject(forwardRef(() => MessagesGateway))
+        private messagesGateway: MessagesGateway
     ) {}
 
     async create(dtoIn: CreateMessageDto, sender: User) {
@@ -103,6 +106,7 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedChore: target })
         await message.save()
+        this.emitMessage(dtoIn.referencedEntity, message)
         return message
     }
 
@@ -138,6 +142,11 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedTask: target })
         await message.save()
+        this.emitMessage(dtoIn.referencedEntity, message)
         return message
+    }
+
+    private async emitMessage(rooms: string | string[], message: Message) {
+        this.messagesGateway.server.to(rooms).emit('message', message)
     }
 }
