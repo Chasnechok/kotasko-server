@@ -286,7 +286,7 @@ export class FilesService {
         return files && files.length ? files[0] : {}
     }
 
-    private async getById(fileId: string): Promise<File> {
+    async getById(fileId: string): Promise<File> {
         const file = await this.fileModel.findById(fileId).catch((err) => {
             throw new BadRequestException(`DB error or ${fileId} is not a valid ObjectId.`)
         })

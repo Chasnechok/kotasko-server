@@ -53,6 +53,11 @@ export class FilesController {
         return this.filesService.calcSpaceUsed(session.user)
     }
 
+    @Get('preDownload/:id')
+    async preDownload(@Param('id') id: string) {
+        return this.filesService.getById(id)
+    }
+
     @Get('download/:id')
     async downloadFile(@Param('id') id: string, @Res() res: Response, @Session() session) {
         const fileMeta = await this.filesService.downloadFile(id, session.user)
