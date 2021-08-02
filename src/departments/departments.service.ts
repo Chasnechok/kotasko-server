@@ -26,14 +26,12 @@ export class DepartmentsService {
 
     async getWorkers(departmentId: string) {
         const dep = await this.findById(departmentId)
-        const workers = await this.userService.findByDepartment(dep._id)
-        return workers
+        return await this.userService.findByDepartment(dep._id)
     }
 
     async setDepHead(setDepHeadDto: SetDepHeadDto): Promise<Department> {
         const dep = await this.findById(setDepHeadDto.depId)
-        const user = await this.userService.findById(setDepHeadDto.userId)
-        dep.head = user
+        dep.head = await this.userService.findById(setDepHeadDto.userId)
         return dep.save()
     }
 

@@ -6,11 +6,10 @@ interface PaginationQuery<T> {
     query: FilterQuery<T>
     sort: number
 }
-   
 
 @Injectable()
 export class PaginationService {
-    generatePaginationQuery<T>(cursor: string, addQuery?: FilterQuery<T>, sort: number = -1): PaginationQuery<T> {
+    generatePaginationQuery<T>(cursor: string, addQuery?: FilterQuery<T>, sort = -1): PaginationQuery<T> {
         const isAsc = (): boolean => sort == 1
         let query = cursor
             ? {
@@ -18,6 +17,6 @@ export class PaginationService {
               }
             : {}
         if (addQuery) query = Object.assign(query, addQuery)
-        return {query, sort}
+        return { query, sort }
     }
 }

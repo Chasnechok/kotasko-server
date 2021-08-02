@@ -9,7 +9,7 @@ export enum TaskStates {
     PENDING_REVIEW = 'PENDING_REVIEW',
     FINISHED = 'FINISHED',
 }
-
+// TODO deadline for tasks
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Task extends Document {
     @Prop({ required: true })

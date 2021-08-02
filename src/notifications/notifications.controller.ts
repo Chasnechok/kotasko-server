@@ -1,4 +1,4 @@
-import { Controller, Get, Body, UseGuards, Res, Session, Patch, Delete, Query } from '@nestjs/common'
+import { Controller, Get, Body, UseGuards, Session, Patch, Delete, Query } from '@nestjs/common'
 import { NotificationsService } from './notifications.service'
 import { AuthGuard } from 'src/auth/auth.guard'
 import { SetSeenNotificationDto } from './dto/set-seen-notification.dto'

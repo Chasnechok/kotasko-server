@@ -1,26 +1,26 @@
-import { Injectable } from '@nestjs/common';
-import { CreateSignalDto } from './dto/create-signal.dto';
-import { UpdateSignalDto } from './dto/update-signal.dto';
-
+import { Injectable } from '@nestjs/common'
+import { CreateSignalDto } from './dto/create-signal.dto'
+import { UpdateSignalDto } from './dto/update-signal.dto'
+// TODO service
 @Injectable()
 export class SignalsService {
-  create(createSignalDto: CreateSignalDto) {
-    return 'This action adds a new signal';
-  }
+    create(createSignalDto: CreateSignalDto) {
+        return 'This action adds a new signal'
+    }
 
-  findAll() {
-    return `This action returns all signals`;
-  }
+    findAll() {
+        return `This action returns all signals`
+    }
 
-  findOne(id: number) {
-    return `This action returns a #${id} signal`;
-  }
+    findOne(id: number) {
+        return `This action returns a #${id} signal`
+    }
 
-  update(id: number, updateSignalDto: UpdateSignalDto) {
-    return `This action updates a #${id} signal`;
-  }
+    update(id: number, updateSignalDto: UpdateSignalDto) {
+        return `This action updates a #${id} signal`
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} signal`;
-  }
+    remove(id: number) {
+        return `This action removes a #${id} signal`
+    }
 }

@@ -52,7 +52,7 @@ export class MessagesService {
         try {
             await this.messageModel.deleteMany({ $or: [{ referencedChore: entity }, { referencedTask: entity }] })
         } catch (error) {
-            throw new InternalServerErrorException(`There was a probem while removing messages`)
+            throw new InternalServerErrorException(`There was a problem while removing messages`)
         }
         return
     }
@@ -106,7 +106,7 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedChore: target })
         await message.save()
-        this.emitMessage(dtoIn.referencedEntity, message)
+        await this.emitMessage(dtoIn.referencedEntity, message)
         return message
     }
 
@@ -142,7 +142,7 @@ export class MessagesService {
         }
         const message = new this.messageModel({ ...dtoIn, sender, type, referencedTask: target })
         await message.save()
-        this.emitMessage(dtoIn.referencedEntity, message)
+        await this.emitMessage(dtoIn.referencedEntity, message)
         return message
     }
 

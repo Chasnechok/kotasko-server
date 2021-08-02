@@ -14,6 +14,7 @@ import { DepartmentsService } from 'src/departments/departments.service'
 import { CreateUserDto } from './dtos/create-user.dto'
 import { UpdateUserDto } from './dtos/update-user.dto'
 import { AuthService } from 'src/auth/auth.service'
+
 const nanoid = customAlphabet('0123456789ABCDEF', 4)
 
 @Injectable()
@@ -30,8 +31,7 @@ export class UsersService {
     }
 
     async findByLogin(login: string): Promise<User> {
-        const user = await this.userModel.findOne({ login })
-        return user
+        return this.userModel.findOne({ login })
     }
 
     async addUserRole(dtoIn: UpdateUserRoleDto): Promise<User> {
@@ -47,13 +47,7 @@ export class UsersService {
         user.details = dtoIn.details || user.details
         user.roles = dtoIn.roles || user.roles
         user.quota = typeof dtoIn.quota !== undefined ? dtoIn.quota : user.quota
-        const userSessions = await this.authService.sessionByUserId(user.id)
-        userSessions.forEach((s) => {
-            const data = JSON.parse(s.session)
-            data.user = user
-            s.session = JSON.stringify(data)
-            s.save()
-        })
+        await this.updateUserInSession(user)
         return user.save()
     }
 
@@ -74,8 +68,7 @@ export class UsersService {
         if (user.id !== caller.id && !caller.roles.includes(UserRoleTypes.ADMIN)) {
             throw new ForbiddenException()
         }
-        const hashedPassword = await bcryptjs.hash(setPasswordDto.value, 5)
-        user.password = hashedPassword
+        user.password = await bcryptjs.hash(setPasswordDto.value, 5)
         if (user.state === UserStatesTypes.CREATED) user.state = UserStatesTypes.ACTIVE
         return user.save()
     }
@@ -90,37 +83,30 @@ export class UsersService {
         userSessions.forEach((s) => {
             s.remove()
         })
-        user.save()
+        await user.save()
         return { ...user.toJSON(), password: OTP } as User
     }
 
-    async deleteUsers(deleteUsersDto: DeleteUsersDto) {
-        for (const userId of deleteUsersDto.userIds) {
+    async deleteUsers(dtoIn: DeleteUsersDto) {
+        for (const userId of dtoIn.userIds) {
             const userSessions = await this.authService.sessionByUserId(userId)
             userSessions.forEach((s) => s.remove())
         }
         return this.userModel.deleteMany({
             _id: {
-                $in: deleteUsersDto.userIds,
+                $in: dtoIn.userIds,
             },
         })
     }
 
-    async manageUserDepartment(dtoIn: AddDepDto, clear: boolean = false) {
+    async manageUserDepartment(dtoIn: AddDepDto, clear = false) {
         const user = await this.findById(dtoIn.userId)
         if (!clear) {
-            const department = await this.departmentsService.findById(dtoIn.departmentId)
-            user.department = department
+            user.department = await this.departmentsService.findById(dtoIn.departmentId)
         } else {
             user.department = null
         }
-        const userSessions = await this.authService.sessionByUserId(user.id)
-        userSessions.forEach((s) => {
-            const data = JSON.parse(s.session)
-            data.user = user
-            s.session = JSON.stringify(data)
-            s.save()
-        })
+        await this.updateUserInSession(user)
         return user.save()
     }
 
@@ -158,11 +144,20 @@ export class UsersService {
     }
 
     async getInfo(user: User): Promise<User> {
-        const target = await this.findById(user.id)
-        return target
+        return await this.findById(user.id)
     }
 
     async findTechnicians(): Promise<User[]> {
         return this.userModel.find({ roles: UserRoleTypes.TECHNICIAN })
+    }
+
+    private async updateUserInSession(user: User) {
+        const userSessions = await this.authService.sessionByUserId(user.id)
+        userSessions.forEach((s) => {
+            const data = JSON.parse(s.session)
+            data.user = user
+            s.session = JSON.stringify(data)
+            s.save()
+        })
     }
 }

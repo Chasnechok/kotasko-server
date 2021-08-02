@@ -13,8 +13,8 @@ export class DepartmentsController {
 
     @Roles(UserRoleTypes.ADMIN)
     @Post('/create')
-    createDepartment(@Body() CreateDepartmentDto: CreateDepartmentDto) {
-        return this.departmentsService.create(CreateDepartmentDto)
+    createDepartment(@Body() dtoIn: CreateDepartmentDto) {
+        return this.departmentsService.create(dtoIn)
     }
 
     @Get('/list')
@@ -22,14 +22,19 @@ export class DepartmentsController {
         return this.departmentsService.findAll()
     }
 
+    /**
+     * TODO
+     * Remove, Update
+     */
+
     @Get('/getWorkers')
-    getWorkers(@Body() departmentIdDto: DepartmentIdDto) {
-        return this.departmentsService.getWorkers(departmentIdDto.depId)
+    getWorkers(@Body() dtoIn: DepartmentIdDto) {
+        return this.departmentsService.getWorkers(dtoIn.depId)
     }
 
     @Roles(UserRoleTypes.ADMIN)
     @Patch('/setHead')
-    setDepHead(@Body() setDepHeadDto: SetDepHeadDto) {
-        return this.departmentsService.setDepHead(setDepHeadDto)
+    setDepHead(@Body() dtoIn: SetDepHeadDto) {
+        return this.departmentsService.setDepHead(dtoIn)
     }
 }

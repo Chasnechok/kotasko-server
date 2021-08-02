@@ -6,21 +6,26 @@ import { OrganisationsService } from './organisations.service'
 
 @Controller('organisation')
 export class OrganisationsController {
-    constructor(private OrganisationsService: OrganisationsService) {}
+    constructor(private organisationsService: OrganisationsService) {}
 
     @Roles(UserRoleTypes.ADMIN)
     @Post('/create')
-    createOrgnisation(@Body() CreateOrganisationDto: CreateOrganisationDto) {
-        return this.OrganisationsService.create(CreateOrganisationDto)
+    createOrganisation(@Body() dtoIn: CreateOrganisationDto) {
+        return this.organisationsService.create(dtoIn)
     }
 
     @Get('/list')
     getOrganisations() {
-        return this.OrganisationsService.findAll()
+        return this.organisationsService.findAll()
     }
 
+    /**
+     * TODO
+     * Update, Remove
+     */
+
     @Get('/getHead')
-    getHead(@Body() GetHeadDto: GetHeadDto) {
-        return this.OrganisationsService.getHead(GetHeadDto)
+    getHead(@Body() dtoIn: GetHeadDto) {
+        return this.organisationsService.getHead(dtoIn)
     }
 }

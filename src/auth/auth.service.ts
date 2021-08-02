@@ -9,6 +9,7 @@ import { Session } from './session.schema'
 import { FinishRegDto } from './dtos/finish-reg.dto'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
+
 const nanoid = customAlphabet('0123456789ABCDEF', 4)
 
 @Injectable()
@@ -30,7 +31,7 @@ export class AuthService {
             if (err) console.error(err)
         })
     }
-    async register(registerUserDto: RegisterUserDto): Promise<Object> {
+    async register(registerUserDto: RegisterUserDto): Promise<User> {
         // if there is an existing user add some random numbers to login
         let login = registerUserDto.login
         while (true) {
@@ -41,7 +42,7 @@ export class AuthService {
         const OTP = nanoid() + '-' + nanoid() + '-' + nanoid()
         const hashPassword: string = await bcryptjs.hash(OTP, 5)
         const user = await this.userService.createUser({ ...registerUserDto, login, password: hashPassword })
-        return { ...user.toJSON(), password: OTP }
+        return { ...user.toJSON(), password: OTP } as User
     }
 
     async finishRegistration(dtoIn: FinishRegDto, caller: User) {
@@ -68,10 +69,9 @@ export class AuthService {
     }
 
     async sessionByUserId(userId: string) {
-        const session = await this.sessionModel.find({
+        return this.sessionModel.find({
             session: { $regex: `.*"user":.*"_id":"${userId}"` },
         })
-        return session
     }
 
     private async validateUser(loginUserDto: LoginUserDto) {

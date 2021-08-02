@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import * as session from 'express-session'
 import { ValidationPipe } from '@nestjs/common'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const MongoStore = require('connect-mongo')
 
 export const SESSION_PARSER = session({
@@ -26,7 +27,7 @@ async function start() {
     const PORT = Number(process.env.PORT) || 5000
     const app = await NestFactory.create(AppModule)
     app.enableCors({
-        origin: ['http://localhost:3000', 'http://kotasko.com', 'http://www.kotasko.com'],
+        origin: ['http://localhost:3000', 'https://kotasko.com', 'https://www.kotasko.com'],
         credentials: true,
     })
     app.useGlobalPipes(
@@ -37,4 +38,4 @@ async function start() {
     app.use(SESSION_PARSER)
     await app.listen(PORT, () => console.log(`Server started at ${PORT}!`))
 }
-start()
+start().catch(console.log)

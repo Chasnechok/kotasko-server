@@ -13,8 +13,6 @@ import { Socket, Server } from 'socket.io'
 @UseFilters(new BaseWsExceptionFilter())
 @WebSocketGateway({ namespace: 'notifications' })
 export class NotificationsGateway {
-    constructor() {}
-
     @WebSocketServer()
     server: Server
 

@@ -6,21 +6,20 @@ import {
     NotFoundException,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { FilterQuery, Model } from 'mongoose'
+import { FilterQuery, Model, Types } from 'mongoose'
 import { File } from './file.schema'
 import { access, unlink } from 'fs/promises'
 import { constants, createReadStream } from 'fs'
 import * as path from 'path'
 import { Readable } from 'stream'
-import { FileAccessUserDto, FileLinkedTasksDto, FileAccessModes } from './dtos/file-access.dto'
+import { FileAccessModes, FileAccessUserDto, FileLinkedTasksDto } from './dtos/file-access.dto'
 import { NotificationsService } from 'src/notifications/notifications.service'
-import { User, UserRoleTypes } from 'src/users/user.schema'
+import { User } from 'src/users/user.schema'
 import { TasksService } from 'src/tasks/tasks.service'
 import { UsersService } from 'src/users/users.service'
 import { NotificationsTypes } from 'src/notifications/notification.schema'
 import { PaginationService } from 'src/pagination/pagination.service'
 import ListPaginateDto from 'src/pagination/list-paginate.dto'
-import { Types } from 'mongoose'
 
 @Injectable()
 export class FilesService {
@@ -46,8 +45,7 @@ export class FilesService {
                 },
             },
         ])
-        const spaceUsed = req && req.length ? req[0].spaceUsed : 0
-        return spaceUsed
+        return req && req.length ? req[0].spaceUsed : 0
     }
 
     async manageUsersAccess(dto: FileAccessUserDto, caller: User, mode: FileAccessModes) {
@@ -81,11 +79,11 @@ export class FilesService {
         }
 
         if (additions && additions.length) {
-            this.notificationsService.create(caller, NotificationsTypes.NEW_SHARED_FILE, additions, target)
+            await this.notificationsService.create(caller, NotificationsTypes.NEW_SHARED_FILE, additions, target)
         }
 
         if (deletions && deletions.length) {
-            this.notificationsService.removeForUsers(deletions, target, NotificationsTypes.FILE_UNSHARED)
+            await this.notificationsService.removeForUsers(deletions, target, NotificationsTypes.FILE_UNSHARED)
         }
         return target.save()
     }
@@ -159,7 +157,7 @@ export class FilesService {
         }
         const user = await this.usersService.findById(caller.id)
         user.spaceUsed = user.spaceUsed + allSize
-        user.save()
+        await user.save()
         files.forEach((file) => (file.owner = caller))
         if (shared && shared.length) {
             const sharedUsers = await this.usersService.findAll({
@@ -209,7 +207,7 @@ export class FilesService {
             size: file.size,
             shared: file.shared || [],
         }))
-        const storedFiles = await this.fileModel
+        return await this.fileModel
             .insertMany(dtoIn, {
                 populate: {
                     path: 'owner',
@@ -219,7 +217,6 @@ export class FilesService {
             .catch((err) => {
                 throw new InternalServerErrorException(err)
             })
-        return storedFiles
     }
 
     async listPaginate(dtoIn: ListPaginateDto, caller: User) {
@@ -287,7 +284,7 @@ export class FilesService {
     }
 
     async getById(fileId: string): Promise<File> {
-        const file = await this.fileModel.findById(fileId).catch((err) => {
+        const file = await this.fileModel.findById(fileId).catch(() => {
             throw new BadRequestException(`DB error or ${fileId} is not a valid ObjectId.`)
         })
         if (!file) throw new NotFoundException(`File with ${fileId} id was not found!`)
@@ -296,8 +293,7 @@ export class FilesService {
 
     getReadableStream(filePath: string): Readable {
         try {
-            const stream = createReadStream(filePath)
-            return stream
+            return createReadStream(filePath)
         } catch (error) {
             console.error(error)
             throw new InternalServerErrorException(`There was a problem while downloading a file.`)

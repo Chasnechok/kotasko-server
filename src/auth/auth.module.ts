@@ -1,4 +1,4 @@
-import { forwardRef, Global, Module } from '@nestjs/common'
+import { Global, Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { Session } from './session.schema'
 import { UsersModule } from 'src/users/users.module'

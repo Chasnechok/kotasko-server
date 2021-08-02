@@ -42,7 +42,7 @@ export class TasksService {
     async createTask(dtoIn: TaskCreateDto, caller: User): Promise<Task> {
         const createdTask = new this.taskModel({ creator: caller, ...dtoIn })
         await createdTask.save()
-        this.notificationsService.create(caller, NotificationsTypes.NEW_TASK, createdTask.assignedTo, createdTask)
+        await this.notificationsService.create(caller, NotificationsTypes.NEW_TASK, createdTask.assignedTo, createdTask)
         if (createdTask.attachments) {
             for (const attachment of createdTask.attachments) {
                 const dto = {
@@ -65,7 +65,7 @@ export class TasksService {
         }
         target.state = state
         const usersToNotify = target.assignedTo.concat(target.creator).filter((u) => u.id !== caller.id)
-        this.notificationsService.create(caller, NotificationsTypes.UPDATE_TASK, usersToNotify, target)
+        await this.notificationsService.create(caller, NotificationsTypes.UPDATE_TASK, usersToNotify, target)
         return target.save()
     }
 
@@ -108,17 +108,17 @@ export class TasksService {
         }
 
         if (additions && additions.length) {
-            this.notificationsService.create(caller, NotificationsTypes.NEW_TASK, additions, target)
+            await this.notificationsService.create(caller, NotificationsTypes.NEW_TASK, additions, target)
         }
 
         if (deletions && deletions.length) {
-            this.notificationsService.removeForUsers(deletions, target, NotificationsTypes.TASK_UNASSIGNED)
+            await this.notificationsService.removeForUsers(deletions, target, NotificationsTypes.TASK_UNASSIGNED)
         }
         return target.save()
     }
 
     async getById(taskId: string, user?: User): Promise<Task> {
-        const task = await this.taskModel.findById(taskId).catch((err) => {
+        const task = await this.taskModel.findById(taskId).catch(() => {
             throw new BadRequestException(`DB error or ${taskId} is not a valid ObjectId.`)
         })
         if (!task) throw new NotFoundException(`Task with ${taskId} id was not found!`)

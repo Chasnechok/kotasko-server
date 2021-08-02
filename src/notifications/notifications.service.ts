@@ -139,19 +139,19 @@ export class NotificationsService {
             const rooms = receivers.map((u) => u.id)
             switch (entity.getModelName()) {
                 case MainModelNames.TASKS:
-                    this.emitNotification(rooms, {
+                    await this.emitNotification(rooms, {
                         type: NotificationsTypes.TASK_REMOVED,
                         referencedTask: entity as Task,
                     } as Notification)
                     break
                 case MainModelNames.CHORES:
-                    this.emitNotification(rooms, {
+                    await this.emitNotification(rooms, {
                         type: NotificationsTypes.CHORE_REMOVED,
                         referencedChore: entity as Chore,
                     } as Notification)
                     break
                 case MainModelNames.FILES:
-                    this.emitNotification(rooms, {
+                    await this.emitNotification(rooms, {
                         type: NotificationsTypes.FILE_UNSHARED,
                         referencedFile: entity as File,
                     } as Notification)
@@ -175,7 +175,7 @@ export class NotificationsService {
     }
 
     private async getById(notificationId: string) {
-        const notification = await this.notificationModel.findById(notificationId).catch((err) => {
+        const notification = await this.notificationModel.findById(notificationId).catch(() => {
             throw new BadRequestException(`DB error or ${notificationId} is not a valid ObjectId.`)
         })
         if (!notification) throw new NotFoundException(`Notification with ${notificationId} id was not found.`)
@@ -191,7 +191,6 @@ export class NotificationsService {
         for (const nf of dtoIn) {
             if (nf.receiver.id !== caller.id) nfsToCreate.push(Object.assign(nf, { sender: caller }))
         }
-        const created = await this.notificationModel.create(nfsToCreate)
-        return created
+        return await this.notificationModel.create(nfsToCreate)
     }
 }

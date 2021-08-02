@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document, Schema as MongooseSchema } from 'mongoose'
 import { Organisation } from 'src/organisations/organisation.schema'
-import { User } from '../users/user.schema'
+import { User } from 'src/users/user.schema'
 
 @Schema({ timestamps: true })
 export class Department extends Document {
