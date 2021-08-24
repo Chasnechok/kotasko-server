@@ -37,8 +37,8 @@ export class AuthController {
     }
 
     @UseGuards(AuthGuard)
-    @Patch('finishRegistartion')
-    finishRegistartion(@Body() dtoIn: FinishRegDto, @Session() session) {
+    @Patch('finishRegistration')
+    finishRegistration(@Body() dtoIn: FinishRegDto, @Session() session) {
         return this.authService.finishRegistration(dtoIn, session.user)
     }
 }
