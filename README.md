@@ -11,3 +11,4 @@ The app is fully mobile-friendly
 - MongoDB
 #
 [client repo](https://github.com/Chasnechok/kotasko-client)
+[docker-compose example](https://gist.github.com/Chasnechok/6d82cf6abb1bc0f0f11da9f1d04bf0d8)
